@@ -48,5 +48,455 @@
     "days_active": 9,
     "industry": "E-Commerce",
     "source_type": "curated_seed"
+  },
+  {
+    "ad_id": "pk_marketing_001",
+    "page_name": "ScaleFlow PK",
+    "ad_copy": "Kya aap apni e-commerce sales 3X scale karna chahte hain? Hamara proven scale blueprint ab live hai! 50+ local brands trust us. Fauri rabta karein WhatsApp par.",
+    "media_type": "video",
+    "cta_raw": "WHATSAPP_MESSAGE",
+    "days_active": 18,
+    "industry": "Marketing",
+    "source_type": "curated_seed"
+  },
+  {
+    "ad_id": "pk_marketing_002",
+    "page_name": "AdGrowth Lahore",
+    "ad_copy": "Stop wasting ad spend on unoptimized Meta campaigns. Hamari verified lead acquisition funnel se payein guaranteed ROAS. Call now for a free audit.",
+    "media_type": "image",
+    "cta_raw": "CALL_NOW",
+    "days_active": 12,
+    "industry": "Marketing",
+    "source_type": "curated_seed"
+  },
+  {
+    "ad_id": "pk_marketing_003",
+    "page_name": "ClientForge PK",
+    "ad_copy": "Real estate aur B2B brands ke liye verified lead-generation machine! Fauri rabta karein aur high-ticket buyers hasil karein.",
+    "media_type": "image",
+    "cta_raw": "SEND_MESSAGE",
+    "days_active": 9,
+    "industry": "Marketing",
+    "source_type": "curated_seed"
+  },
+  {
+    "ad_id": "pk_marketing_004",
+    "page_name": "ROAS Ninja Pakistan",
+    "ad_copy": "Kya aapke Facebook ads mehenga CPC de rahe hain? Humare performance marketing bundle se bachat karein aur sales barhayen.",
+    "media_type": "video",
+    "cta_raw": "LEARN_MORE",
+    "days_active": 24,
+    "industry": "Marketing",
+    "source_type": "curated_seed"
+  },
+  {
+    "ad_id": "pk_marketing_005",
+    "page_name": "Apex Agency Karachi",
+    "ad_copy": "پاکستان کے ای کامرس برانڈز کے لیے سب سے بڑا گروتھ ہب۔ ابھی رابطہ کریں اور اپنے کاروبار کو وسعت دیں۔",
+    "media_type": "carousel",
+    "cta_raw": "SEND_MESSAGE",
+    "days_active": 15,
+    "industry": "Marketing",
+    "source_type": "curated_seed"
+  },
+  {
+    "ad_id": "pk_marketing_006",
+    "page_name": "DigiScale Islamabad",
+    "ad_copy": "Generate 100+ qualified leads daily without burning cash! Flat 40% discount on first-month agency retainer.",
+    "media_type": "image",
+    "cta_raw": "LEARN_MORE",
+    "days_active": 6,
+    "industry": "Marketing",
+    "source_type": "curated_seed"
+  },
+  {
+    "ad_id": "pk_marketing_007",
+    "page_name": "ViralPulse Media",
+    "ad_copy": "Ab har product viral hoga! TikTok aur Meta Ads ki complete management. Fauri WhatsApp par message bhejein.",
+    "media_type": "video",
+    "cta_raw": "WHATSAPP_MESSAGE",
+    "days_active": 14,
+    "industry": "Marketing",
+    "source_type": "curated_seed"
+  },
+  {
+    "ad_id": "pk_marketing_008",
+    "page_name": "BrandBoost Pakistan",
+    "ad_copy": "E-commerce store start kiya hai lekin orders nahi aa rahe? Hamari proven growth strategy se 10X revenue achieve karein.",
+    "media_type": "image",
+    "cta_raw": "SHOP_NOW",
+    "days_active": 30,
+    "industry": "Marketing",
+    "source_type": "curated_seed"
+  },
+  {
+    "ad_id": "pk_marketing_009",
+    "page_name": "MediaCraft PK",
+    "ad_copy": "100% authentic performance marketing audits for fashion and retail brands. Limited spots available for this month!",
+    "media_type": "carousel",
+    "cta_raw": "LEARN_MORE",
+    "days_active": 11,
+    "industry": "Marketing",
+    "source_type": "curated_seed"
+  },
+  {
+    "ad_id": "pk_marketing_010",
+    "page_name": "AdVantage Digital",
+    "ad_copy": "Kya aap WhatsApp funnels se daily 50+ direct orders chahte hain? Free demo consultation book karein.",
+    "media_type": "video",
+    "cta_raw": "CALL_NOW",
+    "days_active": 8,
+    "industry": "Marketing",
+    "source_type": "curated_seed"
+  },
+  {
+    "ad_id": "pk_marketing_011",
+    "page_name": "ClickSprout PK",
+    "ad_copy": "Boost your Shopify store conversion rate today! Fauri rabta karein aur exclusive bachat offer unlock karein.",
+    "media_type": "image",
+    "cta_raw": "LEARN_MORE",
+    "days_active": 21,
+    "industry": "Marketing",
+    "source_type": "curated_seed"
+  },
+  {
+    "ad_id": "pk_marketing_012",
+    "page_name": "TargetGen Agency",
+    "ad_copy": "کامیاب ڈیجیٹل مارکیٹنگ کے لیے مستند حل۔ اپنے برانڈ کو پاکستان بھر میں مقبول بنائیں۔",
+    "media_type": "image",
+    "cta_raw": "SEND_MESSAGE",
+    "days_active": 16,
+    "industry": "Marketing",
+    "source_type": "curated_seed"
+  },
+  {
+    "ad_id": "pk_marketing_013",
+    "page_name": "FunnelLab PK",
+    "ad_copy": "Stop losing customers at checkout! Optimize your Pakistani COD funnel and reduce RTO by 35%. Learn more.",
+    "media_type": "video",
+    "cta_raw": "LEARN_MORE",
+    "days_active": 27,
+    "industry": "Marketing",
+    "source_type": "curated_seed"
+  },
+  {
+    "ad_id": "pk_marketing_014",
+    "page_name": "DirectLeads Pakistan",
+    "ad_copy": "High-converting B2B WhatsApp campaigns setup within 48 hours. Fauri rabta karein aur apna setup claim karein.",
+    "media_type": "carousel",
+    "cta_raw": "WHATSAPP_MESSAGE",
+    "days_active": 5,
+    "industry": "Marketing",
+    "source_type": "curated_seed"
+  },
+  {
+    "ad_id": "pk_marketing_015",
+    "page_name": "CreativeWave Studio",
+    "ad_copy": "Professional ad creatives and video hooks tailored for Pakistani audiences. Rs. 4999 starting package.",
+    "media_type": "image",
+    "cta_raw": "ORDER_NOW",
+    "days_active": 19,
+    "industry": "Marketing",
+    "source_type": "curated_seed"
+  },
+  {
+    "ad_id": "pk_edtech_001",
+    "page_name": "CodeCamp Pakistan",
+    "ad_copy": "Master Python & Generative AI in 10 weeks with live industry mentorship. Registration fee sirf Rs. 1999! Limited seats available.",
+    "media_type": "video",
+    "cta_raw": "LEARN_MORE",
+    "days_active": 14,
+    "industry": "EdTech",
+    "source_type": "curated_seed"
+  },
+  {
+    "ad_id": "pk_edtech_002",
+    "page_name": "FreelancePro PK",
+    "ad_copy": "Freelancing se monthly $500-$1500 earn karna chahte hain? Join our Upwork & Fiverr Mastery batch. Fauri rabta karein!",
+    "media_type": "image",
+    "cta_raw": "WHATSAPP_MESSAGE",
+    "days_active": 22,
+    "industry": "EdTech",
+    "source_type": "curated_seed"
+  },
+  {
+    "ad_id": "pk_edtech_003",
+    "page_name": "SkillForge Islamabad",
+    "ad_copy": "MERN Stack Development Bootcamp: Zero se Hero banien. Flat 30% bachat discount for the first 30 students.",
+    "media_type": "carousel",
+    "cta_raw": "LEARN_MORE",
+    "days_active": 10,
+    "industry": "EdTech",
+    "source_type": "curated_seed"
+  },
+  {
+    "ad_id": "pk_edtech_004",
+    "page_name": "DevMasters Lahore",
+    "ad_copy": "Amazon Wholesale & Private Label Practical Masterclass. 1000+ graduates already earning. Rs. 2499 registration.",
+    "media_type": "video",
+    "cta_raw": "ORDER_NOW",
+    "days_active": 17,
+    "industry": "EdTech",
+    "source_type": "curated_seed"
+  },
+  {
+    "ad_id": "pk_edtech_005",
+    "page_name": "NextGen Coder",
+    "ad_copy": "آن لائن کوڈنگ اور ویب ڈویلپمنٹ سیکھیں۔ گھر بیٹھے ڈالرز کمائیں اور اپنا مستقبل سنواریں۔",
+    "media_type": "image",
+    "cta_raw": "LEARN_MORE",
+    "days_active": 25,
+    "industry": "EdTech",
+    "source_type": "curated_seed"
+  },
+  {
+    "ad_id": "pk_edtech_006",
+    "page_name": "UIUX Academy PK",
+    "ad_copy": "Become a certified Product Designer in 8 weeks! Figma mastery aur live client portfolio building.",
+    "media_type": "video",
+    "cta_raw": "LEARN_MORE",
+    "days_active": 8,
+    "industry": "EdTech",
+    "source_type": "curated_seed"
+  },
+  {
+    "ad_id": "pk_edtech_007",
+    "page_name": "ShopifyExperts PK",
+    "ad_copy": "E-commerce store banana aur scale karna seekhein. Fauri rabta karein aur flat 40% discount payein.",
+    "media_type": "carousel",
+    "cta_raw": "WHATSAPP_MESSAGE",
+    "days_active": 13,
+    "industry": "EdTech",
+    "source_type": "curated_seed"
+  },
+  {
+    "ad_id": "pk_edtech_008",
+    "page_name": "DataMinds Pakistan",
+    "ad_copy": "Data Science and Machine Learning bootcamp with guaranteed internship opportunities. Apply today!",
+    "media_type": "image",
+    "cta_raw": "LEARN_MORE",
+    "days_active": 31,
+    "industry": "EdTech",
+    "source_type": "curated_seed"
+  },
+  {
+    "ad_id": "pk_edtech_009",
+    "page_name": "FlutterDev Hub",
+    "ad_copy": "Build cross-platform mobile apps for iOS & Android. Early-bird price Rs. 2999 only. Limited stock.",
+    "media_type": "video",
+    "cta_raw": "ORDER_NOW",
+    "days_active": 7,
+    "industry": "EdTech",
+    "source_type": "curated_seed"
+  },
+  {
+    "ad_id": "pk_edtech_010",
+    "page_name": "CyberShield PK",
+    "ad_copy": "Ethical Hacking & Cyber Security professional training in Pakistan. Verified certificate included.",
+    "media_type": "image",
+    "cta_raw": "LEARN_MORE",
+    "days_active": 19,
+    "industry": "EdTech",
+    "source_type": "curated_seed"
+  },
+  {
+    "ad_id": "pk_edtech_011",
+    "page_name": "DigitalMarketer PK",
+    "ad_copy": "Performance marketing aur Meta ad buying seekhein practical live accounts ke sath. Call now to enroll.",
+    "media_type": "video",
+    "cta_raw": "CALL_NOW",
+    "days_active": 12,
+    "industry": "EdTech",
+    "source_type": "curated_seed"
+  },
+  {
+    "ad_id": "pk_edtech_012",
+    "page_name": "UrduTech Academy",
+    "ad_copy": "کمپیوٹر سائنس اور اے آئی کی جدید ترین تعلیم اردو زبان میں۔ ابھی رجسٹر کریں۔",
+    "media_type": "image",
+    "cta_raw": "LEARN_MORE",
+    "days_active": 15,
+    "industry": "EdTech",
+    "source_type": "curated_seed"
+  },
+  {
+    "ad_id": "pk_edtech_013",
+    "page_name": "EnglishPro Pakistan",
+    "ad_copy": "Fluent spoken English and business communication for remote jobs. Free demo class today!",
+    "media_type": "carousel",
+    "cta_raw": "WHATSAPP_MESSAGE",
+    "days_active": 6,
+    "industry": "EdTech",
+    "source_type": "curated_seed"
+  },
+  {
+    "ad_id": "pk_edtech_014",
+    "page_name": "GrowthInstitute PK",
+    "ad_copy": "High-income remote tech skills seekhein aur US clients ke sath kaam karein. Fauri rabta karein.",
+    "media_type": "video",
+    "cta_raw": "LEARN_MORE",
+    "days_active": 20,
+    "industry": "EdTech",
+    "source_type": "curated_seed"
+  },
+  {
+    "ad_id": "pk_edtech_015",
+    "page_name": "ContentCrafters PK",
+    "ad_copy": "Copywriting and SEO Masterclass: Write high-converting sales copies for global clients. Rs. 1499 only.",
+    "media_type": "image",
+    "cta_raw": "SHOP_NOW",
+    "days_active": 16,
+    "industry": "EdTech",
+    "source_type": "curated_seed"
+  },
+  {
+    "ad_id": "pk_e-commerce_001",
+    "page_name": "Zeenat Fabrics PK",
+    "ad_copy": "Winter Khaddar Collection 2026 is LIVE! Pure fabric, gorgeous embroidery. Rs. 2499 with Free delivery across Pakistan & Cash on Delivery available.",
+    "media_type": "carousel",
+    "cta_raw": "SHOP_NOW",
+    "days_active": 28,
+    "industry": "E-Commerce",
+    "source_type": "curated_seed"
+  },
+  {
+    "ad_id": "pk_e-commerce_002",
+    "page_name": "Peshawar Kheri",
+    "ad_copy": "Authentic Handmade Traditional Peshawari Chappal in genuine leather. Cash on delivery dastiyab hai. Sirf Rs. 2999!",
+    "media_type": "image",
+    "cta_raw": "ORDER_NOW",
+    "days_active": 14,
+    "industry": "E-Commerce",
+    "source_type": "curated_seed"
+  },
+  {
+    "ad_id": "pk_e-commerce_003",
+    "page_name": "DermaGlow PK",
+    "ad_copy": "Say goodbye to dark spots with our Vitamin C Glow Serum! Flat 50% chhoot, fauri rabta karein COD dastiyab hai. Rs. 1299 only.",
+    "media_type": "video",
+    "cta_raw": "SHOP_NOW",
+    "days_active": 35,
+    "industry": "E-Commerce",
+    "source_type": "curated_seed"
+  },
+  {
+    "ad_id": "pk_e-commerce_004",
+    "page_name": "HomeEase Pakistan",
+    "ad_copy": "Smart vegetable cutter and multifunctional kitchen gadget. Mega Bachat sale: 40% off with Free shipping all over Pakistan.",
+    "media_type": "video",
+    "cta_raw": "ORDER_NOW",
+    "days_active": 9,
+    "industry": "E-Commerce",
+    "source_type": "curated_seed"
+  },
+  {
+    "ad_id": "pk_e-commerce_005",
+    "page_name": "Shahi Libas",
+    "ad_copy": "خالص لان اور کھدر کے پرنٹڈ سوٹ۔ پورے پاکستان میں کیش آن ڈلیوری اور مفت شپنگ دستیاب ہے۔",
+    "media_type": "carousel",
+    "cta_raw": "SHOP_NOW",
+    "days_active": 21,
+    "industry": "E-Commerce",
+    "source_type": "curated_seed"
+  },
+  {
+    "ad_id": "pk_e-commerce_006",
+    "page_name": "LeatherCraft PK",
+    "ad_copy": "Handcrafted premium leather wallet & belt gift set. Cash on delivery available. Fauri order karein!",
+    "media_type": "image",
+    "cta_raw": "ORDER_NOW",
+    "days_active": 16,
+    "industry": "E-Commerce",
+    "source_type": "curated_seed"
+  },
+  {
+    "ad_id": "pk_e-commerce_007",
+    "page_name": "NutriPure Pakistan",
+    "ad_copy": "100% Pure Organic Sidr Honey from Karak. Laboratory tested & authentic. Rs. 1850 with COD.",
+    "media_type": "image",
+    "cta_raw": "SHOP_NOW",
+    "days_active": 19,
+    "industry": "E-Commerce",
+    "source_type": "curated_seed"
+  },
+  {
+    "ad_id": "pk_e-commerce_008",
+    "page_name": "GlamourTouch PK",
+    "ad_copy": "Matte Long-Lasting Waterproof Lipsticks set of 6. Flat 35% discount aur free delivery on Rs. 2000+ orders.",
+    "media_type": "video",
+    "cta_raw": "SHOP_NOW",
+    "days_active": 11,
+    "industry": "E-Commerce",
+    "source_type": "curated_seed"
+  },
+  {
+    "ad_id": "pk_e-commerce_009",
+    "page_name": "TechBazaar Karachi",
+    "ad_copy": "Ultra-fast wireless power bank 20,000mAh with LED display. Cash on delivery available all cities.",
+    "media_type": "image",
+    "cta_raw": "ORDER_NOW",
+    "days_active": 24,
+    "industry": "E-Commerce",
+    "source_type": "curated_seed"
+  },
+  {
+    "ad_id": "pk_e-commerce_010",
+    "page_name": "ModestWear PK",
+    "ad_copy": "Premium Turkish Chiffon Hijabs bundle offer! 4 hijabs for Rs. 1999 with muft delivery all over Pakistan.",
+    "media_type": "carousel",
+    "cta_raw": "SHOP_NOW",
+    "days_active": 30,
+    "industry": "E-Commerce",
+    "source_type": "curated_seed"
+  },
+  {
+    "ad_id": "pk_e-commerce_011",
+    "page_name": "FitPulse Pakistan",
+    "ad_copy": "Smart fitness tracker with heart-rate & sleep monitor. Special Bachat discount: Rs. 2499 only.",
+    "media_type": "video",
+    "cta_raw": "ORDER_NOW",
+    "days_active": 8,
+    "industry": "E-Commerce",
+    "source_type": "curated_seed"
+  },
+  {
+    "ad_id": "pk_e-commerce_012",
+    "page_name": "BabyComfort PK",
+    "ad_copy": "Ultra-soft organic cotton baby rompers pack of 3. Cash on delivery dastiyab hai, fauri mangwayen.",
+    "media_type": "image",
+    "cta_raw": "SHOP_NOW",
+    "days_active": 15,
+    "industry": "E-Commerce",
+    "source_type": "curated_seed"
+  },
+  {
+    "ad_id": "pk_e-commerce_013",
+    "page_name": "AromaScents PK",
+    "ad_copy": "Long-lasting luxury Arabic oud & French perfumes. Buy 1 Get 1 Free with Cash on delivery.",
+    "media_type": "video",
+    "cta_raw": "ORDER_NOW",
+    "days_active": 18,
+    "industry": "E-Commerce",
+    "source_type": "curated_seed"
+  },
+  {
+    "ad_id": "pk_e-commerce_014",
+    "page_name": "RoyalFootwear PK",
+    "ad_copy": "Handmade leather loafers for men. Pure comfort, verified quality. Rs. 3499 with Free shipping.",
+    "media_type": "carousel",
+    "cta_raw": "SHOP_NOW",
+    "days_active": 22,
+    "industry": "E-Commerce",
+    "source_type": "curated_seed"
+  },
+  {
+    "ad_id": "pk_e-commerce_015",
+    "page_name": "CrispCook PK",
+    "ad_copy": "Non-stick granite cookware set with heat-resistant handles. Flat 45% off sale! Fauri order karein.",
+    "media_type": "image",
+    "cta_raw": "ORDER_NOW",
+    "days_active": 13,
+    "industry": "E-Commerce",
+    "source_type": "curated_seed"
   }
 ]

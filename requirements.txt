@@ -2,6 +2,9 @@
 pydantic>=2.7.0,<3.0.0
 pydantic-settings>=2.2.0,<3.0.0
 
+# HTTP & API Client
+requests>=2.31.0,<3.0.0
+
 # Data Processing & Analytics
 pandas>=2.2.0,<3.0.0
 

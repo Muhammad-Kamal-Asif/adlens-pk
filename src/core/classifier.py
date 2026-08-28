@@ -60,7 +60,7 @@ def classify_single_hook(hook_text: str) -> Literal[
         return "Direct Offer / Discount"
         
     # 4. Social Proof / Trust
-    if re.search(r"\b(\d+[\d,]*\+?\s*(customers|students|reviews)|trusted|authentic|asli|guarantee)\b", t):
+    if re.search(r"\b(\d+[\d,]*\+?\s*(?:happy\s+|satisfied\s+)?(customers|students|reviews|clients|users|buyers|families|orders)|trust|trusted|authentic|asli|guarantee|verified)\b", t):
         return "Social Proof / Trust"
         
     # 5. Default heuristic: Problem-Agitation

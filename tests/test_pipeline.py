@@ -63,7 +63,7 @@ def test_fetch_ads_integration():
 
 
 # ==============================================================================
-# 2. Deterministic Extractor Unit Tests (with "TriSyn Media")
+# 2. Deterministic Extractor Unit Tests (with "LocalBrand_PK")
 # ==============================================================================
 
 class TestDeterministicExtractor:
@@ -72,8 +72,8 @@ class TestDeterministicExtractor:
     def test_extract_price_and_discount_vernacular(self):
         """Test extraction of PKR price and vernacular discount terms."""
         ad = RawAdRecord(
-            ad_id="tsm_001",
-            page_name="TriSyn Media",
+            ad_id="lb_001",
+            page_name="LocalBrand_PK",
             ad_copy="Flat 50% chhoot, fauri rabta karein COD dastiyab hai. Price sirf Rs. 1499!",
             media_type="image",
             cta_raw="SHOP_NOW",
@@ -82,8 +82,8 @@ class TestDeterministicExtractor:
         )
         details = extract_offer_details(ad)
 
-        assert details.ad_id == "tsm_001"
-        assert details.page_name == "TriSyn Media"
+        assert details.ad_id == "lb_001"
+        assert details.page_name == "LocalBrand_PK"
         assert details.price_mentioned == "Rs. 1499"
         assert details.discount_percentage == 50
         assert details.has_cash_on_delivery is True
@@ -95,8 +95,8 @@ class TestDeterministicExtractor:
     def test_extract_pkr_and_muft_delivery(self):
         """Test PKR currency format, zero/muft delivery and WhatsApp CTA."""
         ad = RawAdRecord(
-            ad_id="tsm_002",
-            page_name="TriSyn Media",
+            ad_id="lb_002",
+            page_name="LocalBrand_PK",
             ad_copy="Special Deal: PKR 3500 with muft delivery all over Pakistan! Limited stock bachat offer.",
             media_type="video",
             cta_raw="WHATSAPP_MESSAGE",
@@ -123,8 +123,8 @@ class TestDeterministicExtractor:
         ]
         for raw_cta, expected_normalized in cta_mappings:
             ad = RawAdRecord(
-                ad_id="tsm_cta_test",
-                page_name="TriSyn Media",
+                ad_id="lb_cta_test",
+                page_name="LocalBrand_PK",
                 ad_copy="Standard ad text without offers.",
                 cta_raw=raw_cta,
                 industry="General",
@@ -136,22 +136,22 @@ class TestDeterministicExtractor:
         """Test aggregated metrics in build_offer_matrix."""
         ads = [
             RawAdRecord(
-                ad_id="tsm_agg_1",
-                page_name="TriSyn Media",
+                ad_id="lb_agg_1",
+                page_name="LocalBrand_PK",
                 ad_copy="Cash on delivery available. Free delivery on orders over Rs. 2000.",
                 cta_raw="SHOP_NOW",
                 industry="Fashion",
             ),
             RawAdRecord(
-                ad_id="tsm_agg_2",
-                page_name="TriSyn Media",
+                ad_id="lb_agg_2",
+                page_name="LocalBrand_PK",
                 ad_copy="Masterclass registration for Rs. 999 only. Fauri rabta karein.",
                 cta_raw="SHOP_NOW",
                 industry="EdTech",
             ),
             RawAdRecord(
-                ad_id="tsm_agg_3",
-                page_name="TriSyn Media",
+                ad_id="lb_agg_3",
+                page_name="LocalBrand_PK",
                 ad_copy="Payment on delivery available all across Pakistan.",
                 cta_raw="ORDER_NOW",
                 industry="Beauty",
@@ -161,7 +161,7 @@ class TestDeterministicExtractor:
 
         assert isinstance(summary, OfferMatrixSummary)
         assert summary.total_ads_evaluated == 3
-        # 2 out of 3 have COD (tsm_agg_1, tsm_agg_3) -> 66.7%
+        # 2 out of 3 have COD (lb_agg_1, lb_agg_3) -> 66.7%
         assert summary.cod_prevalence_pct == 66.7
         # 1 out of 3 has free delivery -> 33.3%
         assert summary.free_shipping_prevalence_pct == 33.3
@@ -179,7 +179,7 @@ class TestDeterministicExtractor:
 
 
 # ==============================================================================
-# 3. Language & Hook Classifier Unit Tests (with "TriSyn Media")
+# 3. Language & Hook Classifier Unit Tests (with "LocalBrand_PK")
 # ==============================================================================
 
 class TestClassifierAndLanguageDetection:
@@ -209,12 +209,12 @@ class TestClassifierAndLanguageDetection:
         """Test extracting the opening 1-2 sentences."""
         multi_sentence_copy = (
             "Kya aap bhi client acquisition se pareshan hain? "
-            "TriSyn Media laye hain verified ad strategy! "
+            "LocalBrand_PK laye hain verified ad strategy! "
             "Mazeed maloomat ke liye humein abhi message karein."
         )
         hook = extract_raw_hook(multi_sentence_copy)
         assert "Kya aap bhi client acquisition se pareshan hain?" in hook
-        assert "TriSyn Media laye hain verified ad strategy!" in hook
+        assert "LocalBrand_PK laye hain verified ad strategy!" in hook
         assert "Mazeed maloomat" not in hook
 
     @pytest.mark.parametrize(
@@ -226,7 +226,7 @@ class TestClassifierAndLanguageDetection:
             ("Hurry! Last chance to claim your spot today.", "Urgency / FOMO"),
             ("Flat 40% off on all items! Sale starts now.", "Direct Offer / Discount"),
             ("Rs. 1999 special deal with free delivery.", "Direct Offer / Discount"),
-            ("5,000+ satisfied clients trust TriSyn Media.", "Social Proof / Trust"),
+            ("5,000+ satisfied clients trust LocalBrand_PK.", "Social Proof / Trust"),
             ("100% authentic and verified guarantee.", "Social Proof / Trust"),
             ("Stop wasting ad spend on unoptimized campaigns.", "Problem-Agitation"),
         ],
@@ -236,23 +236,23 @@ class TestClassifierAndLanguageDetection:
         assert classify_single_hook(hook_text) == expected_category
 
     def test_analyze_hooks_report_generation(self):
-        """Test full hook analysis pipeline and aggregation with TriSyn Media ads."""
+        """Test full hook analysis pipeline and aggregation with LocalBrand_PK ads."""
         ads = [
             RawAdRecord(
-                ad_id="tsm_hook_1",
-                page_name="TriSyn Media",
+                ad_id="lb_hook_1",
+                page_name="LocalBrand_PK",
                 ad_copy="Kya aap online sales barhana chahte hain? Humse rabta karein.",
                 industry="Marketing",
             ),
             RawAdRecord(
-                ad_id="tsm_hook_2",
-                page_name="TriSyn Media",
+                ad_id="lb_hook_2",
+                page_name="LocalBrand_PK",
                 ad_copy="Fauri rabta karein! Aaj hi limited discount hasil karein.",
                 industry="Marketing",
             ),
             RawAdRecord(
-                ad_id="tsm_hook_3",
-                page_name="TriSyn Media",
+                ad_id="lb_hook_3",
+                page_name="LocalBrand_PK",
                 ad_copy="500+ happy clients trust our proven ad funnels.",
                 industry="Marketing",
             ),
@@ -269,7 +269,7 @@ class TestClassifierAndLanguageDetection:
             "Direct Offer / Discount",
             "Problem-Agitation",
         ]
-        assert all(item.page_name == "TriSyn Media" for item in report.items)
+        assert all(item.page_name == "LocalBrand_PK" for item in report.items)
 
     def test_analyze_hooks_empty(self):
         """Test analyze_hooks with empty list."""
@@ -278,3 +278,4 @@ class TestClassifierAndLanguageDetection:
         assert report.dominant_hook_type == "None"
         assert report.dominant_language == "None"
         assert report.items == []
+

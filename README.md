@@ -10,6 +10,44 @@
 
 ---
 
+## 🚀 Quick Start
+
+Get AdLens PK up and running locally in under 2 minutes:
+
+### 1. Clone & Set Up Environment
+```bash
+# Clone the repository
+git clone https://github.com/Muhammad-Kamal-Asif/adlens-pk.git
+cd adlens-pk
+
+# Create virtual environment
+python -m venv .venv
+
+# Activate virtual environment
+# Windows (PowerShell):
+.\.venv\Scripts\Activate.ps1
+# Windows (CMD):
+.\.venv\Scripts\activate.bat
+# Linux / macOS / Git Bash:
+source .venv/bin/activate
+```
+
+### 2. Install Requirements
+```bash
+pip install -r requirements.txt
+```
+
+### 3. Launch the Application
+```bash
+streamlit run src/ui/app.py
+```
+*The interactive dashboard will automatically open in your default browser at `http://localhost:8501`.*
+
+> [!NOTE]
+> **Demo Data Note:** AdLens PK comes pre-loaded with **50 curated, realistic Pakistani ad campaigns** across E-Commerce, EdTech, and Digital Marketing agencies. You can immediately explore market metrics, the Pakistan Offer Matrix, Hook Psychology, and AI playbooks with **zero API configuration required**.
+
+---
+
 ## 📌 Problem Space & Market Need
 
 Pakistani D2C e-commerce brands, digital agencies, and SMEs waste substantial ad spend due to a severe lack of actionable, localized market intelligence:
@@ -73,72 +111,29 @@ AdLens PK was engineered for the **Bano Qabil & Alibaba Cloud AI Hackathon** wit
 - **💰 Pakistan Offer Matrix:** Instant quantification of Cash-on-Delivery (COD) adoption rate, free delivery prevalence, and detected PKR price brackets.
 - **🧲 Hook Psychology Studio:** Categorizes creative hooks into *Problem-Agitation*, *Direct Offer / Discount*, *Social Proof / Trust*, *Curiosity / Question*, and *Urgency / FOMO*.
 - **🚀 AI Creative Playbook Synthesizer:** Identifies market creative whitespaces, recommends psychological angles, and outputs ready-to-test Roman-Urdu/English copy hooks.
-- **🛡️ 100% Offline Demo Resilience:** Includes a curated seed dataset and deterministic fallback generator ensuring complete functionality even without external API connectivity.
+- **📥 One-Click Playbook Export:** Download structured creative briefs as `.txt` files directly from the dashboard.
+- **🛡️ 100% Offline Demo Resilience:** Pre-loaded with 50 curated ads and a deterministic fallback strategy engine for reliable offline presentations.
 
 ---
 
-## ⚙️ Local Setup Instructions
+## ⚙️ Configuration & Environment (`.env`)
 
-### Prerequisites
-- **Python 3.10+** installed on your system
-- **Git**
+For live AI brief synthesis via Google Gemini or live API queries, configure `.env`:
 
-### 1. Clone the Repository
-```bash
-git clone https://github.com/Muhammad-Kamal-Asif/adlens-pk.git
-cd adlens-pk
-```
-
-### 2. Create and Activate Virtual Environment
-```bash
-# On Linux / macOS / Git Bash
-python3 -m venv venv
-source venv/bin/activate
-
-# On Windows (PowerShell)
-python -m venv venv
-.\venv\Scripts\Activate.ps1
-
-# On Windows (Command Prompt)
-.\venv\Scripts\activate.bat
-```
-
-### 3. Install Dependencies
-```bash
-pip install -r requirements.txt
-```
-
-### 4. Configure Environment Variables (`.env`)
-Copy the example environment template:
 ```bash
 cp .env.example .env
 ```
-Edit `.env` to configure your keys (optional for demo mode):
+
 ```env
 # Meta Ad Library API token (optional — leave blank to use mock data)
 META_API_TOKEN=
 
-# Google Gemini API key (optional — needed for live Gemini AI generation)
+# Google Gemini API key (optional — needed for live Gemini 1.5 Flash synthesis)
 GEMINI_API_KEY=
 
-# Set to True to run in resilient offline demo mode
+# Set to True to run in demo mode using the 50 pre-loaded ads
 USE_MOCK_DATA=True
 ```
-
-### 5. Launch the Application
-
-#### Option A: Using the Launch Script (Linux / macOS / Git Bash)
-```bash
-chmod +x run.sh
-./run.sh
-```
-
-#### Option B: Direct Streamlit Command
-```bash
-streamlit run src/ui/app.py
-```
-
-Open your browser and navigate to `http://localhost:8501`.
 
 ---
 
@@ -148,11 +143,16 @@ Open your browser and navigate to `http://localhost:8501`.
 adlens-pk/
 ├── .env.example                # Environment variable template
 ├── .gitignore                  # Git ignore rules
+├── .streamlit/
+│   └── config.toml             # Dark mode UI configuration
 ├── architecture.md             # Detailed engineering specifications
+├── Dockerfile                  # Container deployment configuration
 ├── README.md                   # Project documentation
 ├── requirements.txt            # Python dependencies
 ├── run.sh                      # One-click startup script
-└── src/
+├── scripts/
+│   └── generate_demo_data.py   # Automated 45-ad synthetic dataset generator
+├── src/
     ├── config/
     │   ├── __init__.py
     │   └── settings.py         # Pydantic BaseSettings & .env management
@@ -164,7 +164,7 @@ adlens-pk/
     │   ├── classifier.py       # Hook & Language classification heuristics
     │   └── ai_engine.py        # Gemini AI reasoning & fallback synthesizer
     ├── data/
-    │   └── mock_ads.json       # Seeded database of realistic Pakistani ads
+    │   └── mock_ads.json       # Pre-loaded database of 50 Pakistani ads
     └── ui/
         ├── __init__.py
         └── app.py              # Streamlit multi-tab analytical interface
