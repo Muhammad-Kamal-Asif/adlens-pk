@@ -1,0 +1,280 @@
+import json
+import os
+import pytest
+from src.core.schemas import (
+    RawAdRecord,
+    AdOfferDetails,
+    OfferMatrixSummary,
+    HookItem,
+    HookAnalysisReport,
+)
+from src.core.fetcher import fetch_ads
+from src.core.extractor import extract_offer_details, build_offer_matrix
+from src.core.classifier import (
+    detect_language,
+    extract_raw_hook,
+    classify_single_hook,
+    analyze_hooks,
+)
+
+
+# ==============================================================================
+# 1. Mock Ads Seed Dataset Schema Validation Tests
+# ==============================================================================
+
+def test_mock_ads_json_strict_schema_validation():
+    """Verify that every record in mock_ads.json strictly conforms to RawAdRecord."""
+    data_path = os.path.join(
+        os.path.dirname(__file__), "..", "src", "data", "mock_ads.json"
+    )
+    assert os.path.exists(data_path), f"mock_ads.json not found at {data_path}"
+
+    with open(data_path, "r", encoding="utf-8") as f:
+        raw_items = json.load(f)
+
+    assert isinstance(raw_items, list), "mock_ads.json must contain a JSON list"
+    assert len(raw_items) > 0, "mock_ads.json should not be empty"
+
+    validated_records = []
+    for item in raw_items:
+        record = RawAdRecord(**item)
+        assert record.ad_id
+        assert record.page_name
+        assert record.ad_copy
+        assert record.media_type in ["image", "video", "carousel", "unknown"]
+        assert record.days_active >= 0
+        assert record.industry
+        assert record.source_type in ["curated_seed", "live_api"]
+        validated_records.append(record)
+
+    assert len(validated_records) == len(raw_items)
+
+
+def test_fetch_ads_integration():
+    """Test fetch_ads returns properly instantiated RawAdRecord objects."""
+    ads = fetch_ads(use_mock=True)
+    assert isinstance(ads, list)
+    assert len(ads) > 0
+    assert all(isinstance(ad, RawAdRecord) for ad in ads)
+
+    # Filtered fetch
+    fashion_ads = fetch_ads(industry="Fashion", use_mock=True)
+    assert all(ad.industry.lower() == "fashion" for ad in fashion_ads)
+
+
+# ==============================================================================
+# 2. Deterministic Extractor Unit Tests (with "TriSyn Media")
+# ==============================================================================
+
+class TestDeterministicExtractor:
+    """Targeted unit tests for extractor.py verifying Pakistani commercial parsing."""
+
+    def test_extract_price_and_discount_vernacular(self):
+        """Test extraction of PKR price and vernacular discount terms."""
+        ad = RawAdRecord(
+            ad_id="tsm_001",
+            page_name="TriSyn Media",
+            ad_copy="Flat 50% chhoot, fauri rabta karein COD dastiyab hai. Price sirf Rs. 1499!",
+            media_type="image",
+            cta_raw="SHOP_NOW",
+            days_active=5,
+            industry="E-Commerce",
+        )
+        details = extract_offer_details(ad)
+
+        assert details.ad_id == "tsm_001"
+        assert details.page_name == "TriSyn Media"
+        assert details.price_mentioned == "Rs. 1499"
+        assert details.discount_percentage == 50
+        assert details.has_cash_on_delivery is True
+        assert details.primary_cta == "Shop Now"
+        assert "fauri" in details.detected_intent_words
+        assert "chhoot" in details.detected_intent_words
+        assert "rabta" in details.detected_intent_words
+
+    def test_extract_pkr_and_muft_delivery(self):
+        """Test PKR currency format, zero/muft delivery and WhatsApp CTA."""
+        ad = RawAdRecord(
+            ad_id="tsm_002",
+            page_name="TriSyn Media",
+            ad_copy="Special Deal: PKR 3500 with muft delivery all over Pakistan! Limited stock bachat offer.",
+            media_type="video",
+            cta_raw="WHATSAPP_MESSAGE",
+            days_active=12,
+            industry="Retail",
+        )
+        details = extract_offer_details(ad)
+
+        assert details.price_mentioned == "Rs. 3500"
+        assert details.free_delivery_mentioned is True
+        assert details.primary_cta == "Send WhatsApp Message"
+        assert "limited stock" in details.detected_intent_words
+        assert "bachat" in details.detected_intent_words
+
+    def test_cta_normalization_variants(self):
+        """Test normalization for various raw Meta CTA values."""
+        cta_mappings = [
+            ("ORDER_NOW", "Order Now"),
+            ("CALL_NOW", "Call Now"),
+            ("LEARN_MORE", "Learn More"),
+            ("BUY_NOW", "Shop Now"),
+            ("SEND_MESSAGE", "Send WhatsApp Message"),
+            ("CUSTOM_UNKNOWN_CTA", "Other"),
+        ]
+        for raw_cta, expected_normalized in cta_mappings:
+            ad = RawAdRecord(
+                ad_id="tsm_cta_test",
+                page_name="TriSyn Media",
+                ad_copy="Standard ad text without offers.",
+                cta_raw=raw_cta,
+                industry="General",
+            )
+            details = extract_offer_details(ad)
+            assert details.primary_cta == expected_normalized
+
+    def test_build_offer_matrix_aggregation(self):
+        """Test aggregated metrics in build_offer_matrix."""
+        ads = [
+            RawAdRecord(
+                ad_id="tsm_agg_1",
+                page_name="TriSyn Media",
+                ad_copy="Cash on delivery available. Free delivery on orders over Rs. 2000.",
+                cta_raw="SHOP_NOW",
+                industry="Fashion",
+            ),
+            RawAdRecord(
+                ad_id="tsm_agg_2",
+                page_name="TriSyn Media",
+                ad_copy="Masterclass registration for Rs. 999 only. Fauri rabta karein.",
+                cta_raw="SHOP_NOW",
+                industry="EdTech",
+            ),
+            RawAdRecord(
+                ad_id="tsm_agg_3",
+                page_name="TriSyn Media",
+                ad_copy="Payment on delivery available all across Pakistan.",
+                cta_raw="ORDER_NOW",
+                industry="Beauty",
+            ),
+        ]
+        summary = build_offer_matrix(ads)
+
+        assert isinstance(summary, OfferMatrixSummary)
+        assert summary.total_ads_evaluated == 3
+        # 2 out of 3 have COD (tsm_agg_1, tsm_agg_3) -> 66.7%
+        assert summary.cod_prevalence_pct == 66.7
+        # 1 out of 3 has free delivery -> 33.3%
+        assert summary.free_shipping_prevalence_pct == 33.3
+        assert summary.most_common_cta == "Shop Now"
+        assert len(summary.records) == 3
+
+    def test_build_offer_matrix_empty_list(self):
+        """Test handling of empty ad list in build_offer_matrix."""
+        summary = build_offer_matrix([])
+        assert summary.total_ads_evaluated == 0
+        assert summary.cod_prevalence_pct == 0.0
+        assert summary.free_shipping_prevalence_pct == 0.0
+        assert summary.most_common_cta == "None"
+        assert summary.records == []
+
+
+# ==============================================================================
+# 3. Language & Hook Classifier Unit Tests (with "TriSyn Media")
+# ==============================================================================
+
+class TestClassifierAndLanguageDetection:
+    """Targeted unit tests for classifier.py verifying Pakistani vernacular NLP."""
+
+    def test_detect_language_roman_urdu(self):
+        """Test Roman-Urdu classification when colloquial tokens are present."""
+        text = "Apna karobar barhayen aur behtareen bachat ka faida uthayein. Fauri rabta karein."
+        assert detect_language(text) == "Roman-Urdu"
+
+    def test_detect_language_english(self):
+        """Test English classification for pure English copy."""
+        text = "Accelerate your digital growth with data-driven performance marketing strategies."
+        assert detect_language(text) == "English"
+
+    def test_detect_language_urdu_script(self):
+        """Test Urdu script classification (Nastaliq/Arabic range)."""
+        text = "پاکستان کا سب سے بڑا آن لائن اسٹور۔ کیش آن ڈلیوری دستیاب ہے۔"
+        assert detect_language(text) == "Urdu"
+
+    def test_detect_language_mixed(self):
+        """Test Mixed script + Roman-Urdu token combination."""
+        text = "ابھی آرڈر کریں! Fauri rabta karein aur apna gift claim karein."
+        assert detect_language(text) == "Mixed"
+
+    def test_extract_raw_hook(self):
+        """Test extracting the opening 1-2 sentences."""
+        multi_sentence_copy = (
+            "Kya aap bhi client acquisition se pareshan hain? "
+            "TriSyn Media laye hain verified ad strategy! "
+            "Mazeed maloomat ke liye humein abhi message karein."
+        )
+        hook = extract_raw_hook(multi_sentence_copy)
+        assert "Kya aap bhi client acquisition se pareshan hain?" in hook
+        assert "TriSyn Media laye hain verified ad strategy!" in hook
+        assert "Mazeed maloomat" not in hook
+
+    @pytest.mark.parametrize(
+        "hook_text, expected_category",
+        [
+            ("Kya aap freelancing start karna chahte hain?", "Curiosity / Question"),
+            ("Are you struggling to find qualified leads?", "Curiosity / Question"),
+            ("Fauri order karein! Limited stock ending soon!", "Urgency / FOMO"),
+            ("Hurry! Last chance to claim your spot today.", "Urgency / FOMO"),
+            ("Flat 40% off on all items! Sale starts now.", "Direct Offer / Discount"),
+            ("Rs. 1999 special deal with free delivery.", "Direct Offer / Discount"),
+            ("5,000+ satisfied clients trust TriSyn Media.", "Social Proof / Trust"),
+            ("100% authentic and verified guarantee.", "Social Proof / Trust"),
+            ("Stop wasting ad spend on unoptimized campaigns.", "Problem-Agitation"),
+        ],
+    )
+    def test_classify_single_hook_categories(self, hook_text, expected_category):
+        """Test heuristic classification against standard psychological angles."""
+        assert classify_single_hook(hook_text) == expected_category
+
+    def test_analyze_hooks_report_generation(self):
+        """Test full hook analysis pipeline and aggregation with TriSyn Media ads."""
+        ads = [
+            RawAdRecord(
+                ad_id="tsm_hook_1",
+                page_name="TriSyn Media",
+                ad_copy="Kya aap online sales barhana chahte hain? Humse rabta karein.",
+                industry="Marketing",
+            ),
+            RawAdRecord(
+                ad_id="tsm_hook_2",
+                page_name="TriSyn Media",
+                ad_copy="Fauri rabta karein! Aaj hi limited discount hasil karein.",
+                industry="Marketing",
+            ),
+            RawAdRecord(
+                ad_id="tsm_hook_3",
+                page_name="TriSyn Media",
+                ad_copy="500+ happy clients trust our proven ad funnels.",
+                industry="Marketing",
+            ),
+        ]
+        report = analyze_hooks(ads)
+
+        assert isinstance(report, HookAnalysisReport)
+        assert report.total_hooks_analyzed == 3
+        assert len(report.items) == 3
+        assert report.dominant_hook_type in [
+            "Curiosity / Question",
+            "Urgency / FOMO",
+            "Social Proof / Trust",
+            "Direct Offer / Discount",
+            "Problem-Agitation",
+        ]
+        assert all(item.page_name == "TriSyn Media" for item in report.items)
+
+    def test_analyze_hooks_empty(self):
+        """Test analyze_hooks with empty list."""
+        report = analyze_hooks([])
+        assert report.total_hooks_analyzed == 0
+        assert report.dominant_hook_type == "None"
+        assert report.dominant_language == "None"
+        assert report.items == []

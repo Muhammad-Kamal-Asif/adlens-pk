@@ -1,0 +1,52 @@
+[
+  {
+    "ad_id": "pk_ad_001",
+    "page_name": "CodeKaro Pakistan",
+    "ad_copy": "Master Full-Stack Web Development in 12 weeks with live mentorship. Limited seats available! Enroll now for Rs. 1499 registration fee and secure your high-paying remote tech job.",
+    "media_type": "video",
+    "cta_raw": "LEARN_MORE",
+    "days_active": 14,
+    "industry": "EdTech",
+    "source_type": "curated_seed"
+  },
+  {
+    "ad_id": "pk_ad_002",
+    "page_name": "Khaas Poshak",
+    "ad_copy": "Ab har function par pehno shandar designer lawn suits! Pure Pakistan mein Cash on Delivery dastiyab hai aur Rs. 2499 par free delivery. Fauri order karein aur bachat ka faida uthayein.",
+    "media_type": "carousel",
+    "cta_raw": "SHOP_NOW",
+    "days_active": 28,
+    "industry": "Fashion",
+    "source_type": "curated_seed"
+  },
+  {
+    "ad_id": "pk_ad_003",
+    "page_name": "SkillUp Academy PK",
+    "ad_copy": "Freelancing se monthly $500+ earn karna chahte hain? Join our hands-on Amazon & Shopify Mastery Bootcamp. Fauri rabta karein WhatsApp par aur payein flat 40% bachat discount. First 50 students ke liye special bundle offer!",
+    "media_type": "video",
+    "cta_raw": "LEARN_MORE",
+    "days_active": 7,
+    "industry": "EdTech",
+    "source_type": "curated_seed"
+  },
+  {
+    "ad_id": "pk_ad_004",
+    "page_name": "Glow & Pure PK",
+    "ad_copy": "Get glowing skin naturally with our Organic Vitamin C Serum! Say goodbye to acne scars & dark spots. Flat 30% off with Cash on Delivery all over Pakistan. Only Rs. 1499 for a limited time!",
+    "media_type": "image",
+    "cta_raw": "SHOP_NOW",
+    "days_active": 35,
+    "industry": "Beauty",
+    "source_type": "curated_seed"
+  },
+  {
+    "ad_id": "pk_ad_005",
+    "page_name": "SmartBazaar Pakistan",
+    "ad_copy": "Mega Summer Bachat Sale is LIVE! Kitchen gadgets aur home appliances par payein up to 50% discount. Cash on delivery available across Karachi, Lahore & Islamabad. Fauri order karne ke liye Send Message par click karein.",
+    "media_type": "carousel",
+    "cta_raw": "SEND_MESSAGE",
+    "days_active": 9,
+    "industry": "E-Commerce",
+    "source_type": "curated_seed"
+  }
+]

@@ -1,0 +1,79 @@
+import streamlit as st
+import pandas as pd
+from src.core.fetcher import fetch_ads
+from src.core.extractor import build_offer_matrix
+from src.core.classifier import analyze_hooks
+from src.core.ai_engine import generate_tactical_brief
+
+st.set_page_config(page_title="AdLens PK", page_icon="👁️", layout="wide")
+
+st.title("AdLens PK — Pakistani Digital Ad Intelligence")
+st.markdown("Automated market intelligence and creative strategy for local SMEs.")
+
+st.sidebar.header("Analysis Parameters")
+niche = st.sidebar.text_input("Industry / Niche", value="E-commerce")
+use_mock = st.sidebar.checkbox("Use Local Dataset (Demo Mode)", value=True)
+
+if st.sidebar.button("Generate Intelligence Report", type="primary"):
+    with st.spinner("Ingesting Pakistani ad data..."):
+        ads = fetch_ads(industry=None, use_mock=use_mock)
+        
+    if not ads:
+        st.error("No active ads found for this criteria.")
+        st.stop()
+        
+    with st.spinner("Extracting commercial mechanics & classifying hooks..."):
+        offer_matrix = build_offer_matrix(ads)
+        hook_report = analyze_hooks(ads)
+        
+    st.success(f"Successfully processed {len(ads)} active campaigns!")
+    
+    tab1, tab2, tab3, tab4 = st.tabs([
+        "📊 Market Overview", 
+        "💰 Pakistan Offer Matrix", 
+        "🧲 Hook Psychology", 
+        "🚀 Strategy Playbook"
+    ])
+    
+    with tab1:
+        st.subheader("High-Level Campaign Metrics")
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Total Ads Evaluated", offer_matrix.total_ads_evaluated)
+        col2.metric("COD Adoption Rate", f"{offer_matrix.cod_prevalence_pct}%")
+        col3.metric("Dominant Copy Language", hook_report.dominant_language)
+        
+    with tab2:
+        st.subheader("Commercial & Offer Mechanics")
+        st.write(f"**Most Common Call-to-Action:** {offer_matrix.most_common_cta}")
+        st.write(f"**Free Delivery Prevalence:** {offer_matrix.free_shipping_prevalence_pct}%")
+        
+        df_offers = pd.DataFrame([r.model_dump() for r in offer_matrix.records])
+        st.dataframe(
+            df_offers[["page_name", "price_mentioned", "has_cash_on_delivery", "primary_cta"]],
+            use_container_width=True
+        )
+        
+    with tab3:
+        st.subheader("Creative Hook Breakdown")
+        st.write(f"**Dominant Psychological Angle:** {hook_report.dominant_hook_type}")
+        
+        df_hooks = pd.DataFrame([h.model_dump() for h in hook_report.items])
+        st.dataframe(
+            df_hooks[["page_name", "raw_hook", "hook_type", "language"]],
+            use_container_width=True
+        )
+        
+    with tab4:
+        st.subheader("AI-Generated Tactical Brief")
+        with st.spinner("Synthesizing creative whitespace..."):
+            brief = generate_tactical_brief(niche, hook_report, offer_matrix)
+            
+        st.markdown(f"**🎯 Target Niche:** {brief.target_niche}")
+        st.info(f"**🔍 Market Whitespace:** {brief.market_whitespace}")
+        st.success(f"**🧠 Recommended Angle:** {brief.recommended_angle}")
+        
+        st.markdown("**✍️ Suggested Copy Hooks (Ready to Test):**")
+        for h in brief.suggested_hooks:
+            st.markdown(f"- {h}")
+            
+        st.markdown(f"**📦 Recommended Offer Structure:** {brief.recommended_offer_structure}")
