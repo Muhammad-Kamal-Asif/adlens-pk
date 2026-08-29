@@ -279,3 +279,34 @@ class TestClassifierAndLanguageDetection:
         assert report.dominant_language == "None"
         assert report.items == []
 
+
+# ==============================================================================
+# 4. Kaggle E-Commerce Demand Enricher Unit Tests
+# ==============================================================================
+
+class TestKaggleDemandEnricher:
+    """Targeted tests for src/core/kaggle_enricher.py."""
+
+    def test_load_kaggle_demand_returns_top_10(self):
+        """Verify load_kaggle_demand returns top 10 categories with positive counts."""
+        from src.core.kaggle_enricher import load_kaggle_demand
+        demand = load_kaggle_demand()
+        assert isinstance(demand, dict)
+        assert len(demand) == 10
+        assert all(isinstance(k, str) for k in demand.keys())
+        assert all(isinstance(v, int) and v > 0 for v in demand.values())
+
+    def test_get_demand_context_fashion(self):
+        """Verify get_demand_context formats a descriptive plain English sentence."""
+        from src.core.kaggle_enricher import get_demand_context
+        ctx = get_demand_context("Fashion")
+        assert "Fashion" in ctx or "orders" in ctx
+        assert "dataset" in ctx
+
+    def test_get_demand_context_electronics(self):
+        """Verify demand context for electronics category."""
+        from src.core.kaggle_enricher import get_demand_context
+        ctx = get_demand_context("Electronics")
+        assert "orders in this dataset" in ctx
+
+

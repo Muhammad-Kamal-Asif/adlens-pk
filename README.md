@@ -1,194 +1,62 @@
-# AdLens PK — Pakistani Digital Ad Intelligence & Creative Playbook Engine
+﻿# AdLens PK
 
-[![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
-[![Framework](https://img.shields.io/badge/UI-Streamlit-FF4B4B.svg)](https://streamlit.io/)
-[![Validation](https://img.shields.io/badge/Schema-Pydantic%20V2-red.svg)](https://docs.pydantic.dev/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Hackathon](https://img.shields.io/badge/Bano%20Qabil%20x%20Alibaba%20Cloud-AI%20Hackathon-orange.svg)](https://banoqabil.pk)
-
-**AdLens PK** is a localized competitive ad intelligence and AI creative playbook engine specifically tailored for the Pakistani digital advertising and e-commerce ecosystem. It bridges the critical gap left by global competitive intelligence tools by understanding Roman-Urdu nuances, Cash-on-Delivery (COD) dynamics, and local consumer psychology.
+> **Pakistan's first longitudinal ad intelligence engine — built for local brands, powered by real data**
 
 ---
 
-## 🚀 Quick Start
+## The Problem
 
-Get AdLens PK up and running locally in under 2 minutes:
+Global competitive ad intelligence platforms (AdSpy, Foreplay, BigSpy) fail Pakistani brands and agencies because:
 
-### 1. Clone & Set Up Environment
-```bash
-# Clone the repository
-git clone https://github.com/Muhammad-Kamal-Asif/adlens-pk.git
-cd adlens-pk
-
-# Create virtual environment
-python -m venv .venv
-
-# Activate virtual environment
-# Windows (PowerShell):
-.\.venv\Scripts\Activate.ps1
-# Windows (CMD):
-.\.venv\Scripts\activate.bat
-# Linux / macOS / Git Bash:
-source .venv/bin/activate
-```
-
-### 2. Install Requirements
-```bash
-pip install -r requirements.txt
-```
-
-### 3. Launch the Application
-```bash
-streamlit run src/ui/app.py
-```
-*The interactive dashboard will automatically open in your default browser at `http://localhost:8501`.*
-
-> [!NOTE]
-> **Demo Data Note:** AdLens PK comes pre-loaded with **50 curated, realistic Pakistani ad campaigns** across E-Commerce, EdTech, and Digital Marketing agencies. You can immediately explore market metrics, the Pakistan Offer Matrix, Hook Psychology, and AI playbooks with **zero API configuration required**.
+* **Vernacular & Roman-Urdu Blindspots:** Global tools lack tokenization and NLP models for Roman-Urdu, Urdu script, and colloquial buying triggers (*"fauri rabta"*, *"bachat"*, *"asli maal"*, *"dastiyab"*).
+* **Ignored Local Commercial Realities:** Over 80% of Pakistani digital commerce runs on Cash on Delivery (COD) and WhatsApp-first funnels. Global platforms fail to detect or quantify COD adoption, delivery thresholds, and PKR price mechanics (`Rs. 1499`).
+* **Prohibitive Pricing & Ephemeral Data:** Expensive subscriptions ($100–$300/mo) are inaccessible to local SMEs and agencies, while offering zero historical trend tracking or benchmark data for the Pakistani market.
 
 ---
 
-## 📌 Problem Space & Market Need
+## The Solution
 
-Pakistani D2C e-commerce brands, digital agencies, and SMEs waste substantial ad spend due to a severe lack of actionable, localized market intelligence:
+**AdLens PK** is an ad intelligence and creative strategy engine built ground-up for the Pakistani digital advertising ecosystem:
 
-1. **Prohibitive Global Tool Pricing:** Platforms like AdSpy and Foreplay cost $100–$300+/month, placing them far out of reach for Pakistani startups, solo media buyers, and local agencies.
-2. **Vernacular & Roman-Urdu Blindspots:** Global tools lack tokenization and NLP support for Roman-Urdu, Urdu script, and colloquial commercial triggers (*"fauri rabta"*, *"bachat sale"*, *"asli maal"*, *"dastiyab"*).
-3. **Local Commercial Realities Ignored:** Over 80% of Pakistani e-commerce relies on Cash on Delivery (COD) and WhatsApp-first checkout funnels. Standard tools do not extract or quantify COD adoption, delivery thresholds, or local PKR price mechanics (`Rs. 1499`).
-
-### 💡 The AdLens PK Solution
-AdLens PK ingests local digital ad records, extracts commercial terms deterministically (price points, discounts, COD, delivery incentives, CTA normalization), classifies psychological hook angles across English and Roman-Urdu, and synthesizes high-converting creative playbooks powered by LLMs (Google Gemini).
+* **Longitudinal Ad Storage:** Continuously persists and tracks ad campaigns over time using relational storage, enabling long-term historical trend analysis across industries.
+* **Vernacular Roman-Urdu NLP:** Classifies psychological hook angles (*Problem-Agitation*, *Social Proof*, *Curiosity*, *Urgency/FOMO*) and detects language patterns across pure English, Nastaliq Urdu, and Roman-Urdu transliterations.
+* **Deterministic COD & Commercial Detection:** High-speed regex parsing extracts PKR pricing, discount percentages, WhatsApp CTAs, free delivery thresholds, and Cash-on-Delivery prevalence.
+* **Kaggle Demand Context:** Enriches ad intelligence with real-world consumer order volumes from Pakistan's Largest Ecommerce Dataset (500k+ transactions) to benchmark ad activity against actual category demand.
 
 ---
 
-## 🏆 Alignment with Bano Qabil & Alibaba Cloud AI Hackathon
+## Tech Stack
 
-AdLens PK was engineered for the **Bano Qabil & Alibaba Cloud AI Hackathon** with the following foundational pillars:
-
-- **Grassroots Empowerment:** Democratizing enterprise-grade competitive intelligence for Pakistani youth, freelancers, and small business owners.
-- **Vernacular-First AI:** Solving real socio-economic problems in emerging markets through localized Natural Language Processing and commercial heuristic analysis.
-- **Cloud-Native & Scalable:** Designed for containerized deployment on **Alibaba Cloud Elastic Compute Service (ECS)** and **Container Service for Kubernetes (ACK)** with cost-effective inference pipelines.
-
----
-
-## 🏗️ 4-Tier Decoupled Architecture
-
-```
-┌────────────────────────────────────────────────────────────────────────┐
-│                          1. INGESTION LAYER                            │
-│  src/core/fetcher.py                                                   │
-│  - Dual-Engine: Live API Wrapper + Curated Seed Dataset Fallback       │
-│  - Standardizes raw data into RawAdRecord schema                       │
-└───────────────────────────────────┬────────────────────────────────────┘
-                                    │ (RawAdRecord)
-┌───────────────────────────────────▼────────────────────────────────────┐
-│                    2. DETERMINISTIC EXTRACTION LAYER                   │
-│  src/core/extractor.py                                                 │
-│  - Regex & Rule Engine: Price (PKR/Rs.), Discounts, COD & Free Delivery│
-│  - Vernacular intent trigger extraction & CTA normalization            │
-└───────────────────────────────────┬────────────────────────────────────┘
-                                    │ (AdOfferDetails / OfferMatrixSummary)
-┌───────────────────────────────────▼────────────────────────────────────┐
-│                   3. AI CLASSIFICATION & REASONING                     │
-│  src/core/classifier.py & src/core/ai_engine.py                        │
-│  - Language Detection (English / Urdu / Roman-Urdu / Mixed)            │
-│  - Psychological Hook Classifier (Problem-Agitation, FOMO, etc.)       │
-│  - Gemini LLM Tactical Creative Brief Synthesizer (with offline backup)│
-└───────────────────────────────────┬────────────────────────────────────┘
-                                    │ (HookAnalysisReport & TacticalCreativeBrief)
-┌───────────────────────────────────▼────────────────────────────────────┐
-│                        4. PRESENTATION LAYER                           │
-│  src/ui/app.py                                                         │
-│  - Interactive Streamlit Dashboard (Overview, Matrix, Studio, Brief)   │
-└────────────────────────────────────────────────────────────────────────┘
-```
+| Layer | Technology | Purpose |
+| --- | --- | --- |
+| **Runtime & Language** | Python 3.12 | Core backend pipeline & data processing |
+| **Frontend Framework** | Streamlit | Analytical dashboard & interactive UI |
+| **Database** | PostgreSQL | Longitudinal ad storage & relational data persistence |
+| **ORM & Query Layer** | SQLAlchemy | Data modeling, migrations & schema management |
+| **Data Ingestion** | Meta Ad Library API | Live ad ingestion across Pakistani advertisers |
+| **AI & LLM Reasoning** | Google Gemini | Psychological hook reasoning & tactical creative brief generation |
+| **Market Data** | Kaggle | Pakistan's Largest Ecommerce Dataset demand enrichment |
+| **Containerization** | Docker | Reproducible containerized execution & deployment |
+| **Cloud Infrastructure** | Alibaba Cloud | Elastic Compute Service (ECS) cloud hosting |
 
 ---
 
-## ✨ Key Features
-
-- **📊 Market Overview & Metrics:** High-level campaign aggregation, language breakdown, and active duration tracking.
-- **💰 Pakistan Offer Matrix:** Instant quantification of Cash-on-Delivery (COD) adoption rate, free delivery prevalence, and detected PKR price brackets.
-- **🧲 Hook Psychology Studio:** Categorizes creative hooks into *Problem-Agitation*, *Direct Offer / Discount*, *Social Proof / Trust*, *Curiosity / Question*, and *Urgency / FOMO*.
-- **🚀 AI Creative Playbook Synthesizer:** Identifies market creative whitespaces, recommends psychological angles, and outputs ready-to-test Roman-Urdu/English copy hooks.
-- **📥 One-Click Playbook Export:** Download structured creative briefs as `.txt` files directly from the dashboard.
-- **🛡️ 100% Offline Demo Resilience:** Pre-loaded with 50 curated ads and a deterministic fallback strategy engine for reliable offline presentations.
-
----
-
-## ⚙️ Configuration & Environment (`.env`)
-
-For live AI brief synthesis via Google Gemini or live API queries, configure `.env`:
+## How to Run
 
 ```bash
-cp .env.example .env
-```
-
-```env
-# Meta Ad Library API token (optional — leave blank to use mock data)
-META_API_TOKEN=
-
-# Google Gemini API key (optional — needed for live Gemini 1.5 Flash synthesis)
-GEMINI_API_KEY=
-
-# Set to True to run in demo mode using the 50 pre-loaded ads
-USE_MOCK_DATA=True
+docker-compose up --build
 ```
 
 ---
 
-## 📁 Project Structure
+## Screenshots
 
-```
-adlens-pk/
-├── .env.example                # Environment variable template
-├── .gitignore                  # Git ignore rules
-├── .streamlit/
-│   └── config.toml             # Dark mode UI configuration
-├── architecture.md             # Detailed engineering specifications
-├── Dockerfile                  # Container deployment configuration
-├── README.md                   # Project documentation
-├── requirements.txt            # Python dependencies
-├── run.sh                      # One-click startup script
-├── scripts/
-│   └── generate_demo_data.py   # Automated 45-ad synthetic dataset generator
-├── src/
-    ├── config/
-    │   ├── __init__.py
-    │   └── settings.py         # Pydantic BaseSettings & .env management
-    ├── core/
-    │   ├── __init__.py
-    │   ├── schemas.py          # Strict Pydantic models for all data layers
-    │   ├── fetcher.py          # Dual ingestion engine (Live API + Mock loader)
-    │   ├── extractor.py        # Deterministic regex & commercial parser
-    │   ├── classifier.py       # Hook & Language classification heuristics
-    │   └── ai_engine.py        # Gemini AI reasoning & fallback synthesizer
-    ├── data/
-    │   └── mock_ads.json       # Pre-loaded database of 50 Pakistani ads
-    └── ui/
-        ├── __init__.py
-        └── app.py              # Streamlit multi-tab analytical interface
-```
+[Dashboard Screenshot]
+
+[Trend Tracker Screenshot]
 
 ---
 
-## 🛠️ Tech Stack
+## Built by
 
-- **Core Backend:** Python 3.10+, [Pydantic V2](https://docs.pydantic.dev/), [pydantic-settings](https://docs.pydantic.dev/latest/concepts/pydantic_settings/)
-- **Data & Parsing:** Pandas, Regular Expressions (Regex)
-- **AI & LLM Reasoning:** [Google Generative AI (Gemini 1.5 Flash)](https://ai.google.dev/)
-- **Frontend Dashboard:** [Streamlit](https://streamlit.io/)
-- **Target Deployment:** Alibaba Cloud ECS / Container Service for Kubernetes (ACK)
-
----
-
-## 📄 License
-
-Distributed under the MIT License. See `LICENSE` for more information.
-
----
-
-## 👥 Contributors & Acknowledgements
-
-- **Maintainer:** Muhammad Kamal
-- **Event:** Bano Qabil & Alibaba Cloud AI Hackathon
+Built by Muhammad Kamal

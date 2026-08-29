@@ -7,7 +7,7 @@ set -e
 cd "$(dirname "$0")"
 
 echo "========================================================"
-echo "  🚀 Launching AdLens PK — Ad Intelligence Engine       "
+echo "  Launching AdLens PK — Ad Intelligence Engine          "
 echo "========================================================"
 
 # Activate virtual environment if available

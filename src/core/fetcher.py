@@ -1,87 +1,152 @@
 import json
 import logging
-import os
+from pathlib import Path
 from typing import List, Optional
 import requests
+
 from src.config.settings import settings
 from src.core.schemas import RawAdRecord
 
 logger = logging.getLogger(__name__)
 
-API_ENDPOINT = "https://api.ad-wrapper.io/v1/search"
+MOCK_DATA_PATH = Path(__file__).resolve().parent.parent / "data" / "mock_ads.json"
+
+INDUSTRY_SEARCH_TERMS = {
+    "fashion": [
+        "fashion", "clothing", "lawn", "dress", "unstitched", "shoes",
+        "kapray", "kurti", "jora", "poshak", "bachat sale"
+    ],
+    "food": [
+        "food delivery", "restaurant", "deals", "cafe", "fast food",
+        "khana", "mithai", "biryani", "lazeez", "nashta", "dawat"
+    ],
+    "electronics": [
+        "electronics", "mobile phone", "laptop", "smart watch", "gadgets", "earbuds",
+        "sasta mobile", "chargers", "accessories"
+    ],
+    "real_estate": [
+        "real estate", "property", "plot for sale", "commercial plot", "apartments",
+        "makan", "ghar", "zameen", "plots", "kiraya"
+    ],
+    "health": [
+        "health", "supplement", "vitamins", "skincare", "fitness", "organic",
+        "sehat", "dawa", "ilaj", "desi jhari booti", "wazan"
+    ],
+    "education": [
+        "education", "online course", "university", "academy", "admissions", "training",
+        "taleem", "seekhain", "freelancing course", "huner"
+    ],
+    "general": [
+        "sale", "offer", "discount", "shopping", "deals",
+        "bachat", "sasta", "muft delivery", "fauri rabta", "chhoot"
+    ],
+}
 
 
-def fetch_ads(industry: Optional[str] = None, use_mock: bool = True) -> List[RawAdRecord]:
-    """
-    Fetches raw ad records.
-    If use_mock=True, loads from the local curated mock dataset.
-    Otherwise, executes a live API request to the Meta Ad Library wrapper,
-    falling back gracefully to mock data on any network or API error.
-    """
-    if use_mock:
-        return _load_mock_data(industry)
-    
-    return _fetch_from_api(industry)
-
-
-def _fetch_from_api(industry: Optional[str] = None) -> List[RawAdRecord]:
-    """
-    Queries live third-party Meta Ad Library API endpoint with authorization,
-    handling timeouts, network errors, and HTTP status errors gracefully.
-    """
-    headers = {
-        "Content-Type": "application/json",
-        "User-Agent": "AdLens-PK/1.0",
-    }
-    if settings.META_API_TOKEN:
-        headers["Authorization"] = f"Bearer {settings.META_API_TOKEN}"
-
-    params = {"country": "PK"}
-    if industry:
-        params["industry"] = industry
+def _load_mock(industry: Optional[str] = None) -> List[RawAdRecord]:
+    """Load mock ad data from local JSON file and optionally filter by industry."""
+    if not MOCK_DATA_PATH.exists():
+        logger.error(f"Mock data file not found at: {MOCK_DATA_PATH}")
+        return []
 
     try:
-        response = requests.get(
-            API_ENDPOINT,
-            headers=headers,
-            params=params,
-            timeout=10,
-        )
-        response.raise_for_status()
-        data = response.json()
+        with open(MOCK_DATA_PATH, "r", encoding="utf-8") as f:
+            raw_data = json.load(f)
 
-        # Support direct list or nested data/ads structure
-        items = data if isinstance(data, list) else data.get("data", data.get("ads", []))
-        
-        records = []
-        for item in items:
-            if isinstance(item, dict):
-                item.setdefault("source_type", "live_api")
-                records.append(RawAdRecord(**item))
-                
-        return records if records else _load_mock_data(industry)
+        records = [RawAdRecord(**item) for item in raw_data]
 
-    except (requests.RequestException, ValueError, KeyError) as e:
-        logger.warning("Live API fetch failed (%s); falling back to mock dataset.", e)
-        return _load_mock_data(industry)
+        if industry and industry.strip().lower() not in ["general", "all"]:
+            filtered = [
+                r for r in records
+                if r.industry.strip().lower() == industry.strip().lower()
+            ]
+            if filtered:
+                return filtered
+
+        return records
     except Exception as e:
-        logger.error("Unexpected error during live API fetch (%s); falling back to mock dataset.", e)
-        return _load_mock_data(industry)
-
-
-def _load_mock_data(industry_filter: Optional[str] = None) -> List[RawAdRecord]:
-    """Loads and parses the curated fallback dataset."""
-    file_path = os.path.join(os.path.dirname(__file__), "..", "data", "mock_ads.json")
-    
-    if not os.path.exists(file_path):
+        logger.error(f"Error loading mock ads: {e}")
         return []
-        
-    with open(file_path, "r", encoding="utf-8") as f:
-        raw_data = json.load(f)
-        
-    records = [RawAdRecord(**item) for item in raw_data]
-    
-    if industry_filter:
-        records = [r for r in records if r.industry.lower() == industry_filter.lower()]
-        
+
+
+def _fetch_live(industry: str) -> List[RawAdRecord]:
+    """Fetch live ads from Meta Graph API v19.0 ads_archive endpoint for Pakistan."""
+    if not settings.META_API_TOKEN:
+        logger.warning("META_API_TOKEN is not configured. Cannot fetch live ads.")
+        return []
+
+    normalized_key = industry.strip().lower().replace(" ", "_") if industry else "general"
+    terms = INDUSTRY_SEARCH_TERMS.get(normalized_key, INDUSTRY_SEARCH_TERMS["general"])
+
+    records: List[RawAdRecord] = []
+    seen_ad_ids = set()
+
+    for term in terms[:3]:
+        try:
+            resp = requests.get(
+                "https://graph.facebook.com/v19.0/ads_archive",
+                params={
+                    "access_token": settings.META_API_TOKEN,
+                    "ad_reached_countries": json.dumps(["PK"]),
+                    "search_terms": term,
+                    "ad_type": "ALL",
+                    "limit": 25,
+                    "fields": "id,page_name,ad_creative_bodies",
+                },
+                timeout=12,
+            )
+            resp.raise_for_status()
+
+            payload = resp.json()
+            ad_items = payload.get("data", [])
+
+            for ad in ad_items:
+                ad_id = str(ad.get("id", "")).strip()
+                if not ad_id or ad_id in seen_ad_ids:
+                    continue
+
+                bodies = ad.get("ad_creative_bodies", [])
+                if not bodies or not isinstance(bodies, list):
+                    continue
+
+                copy = bodies[0]
+                if not copy or not isinstance(copy, str):
+                    continue
+
+                # Skip any ad where the body contains the word "removed"
+                if "removed" in copy.lower():
+                    continue
+
+                seen_ad_ids.add(ad_id)
+                records.append(
+                    RawAdRecord(
+                        ad_id=ad_id,
+                        page_name=ad.get("page_name", "Unknown"),
+                        ad_copy=copy,
+                        industry=industry if industry else "general",
+                        source_type="live_api",
+                    )
+                )
+
+        except Exception as e:
+            logger.warning(f"Failed to fetch live ads for term '{term}': {e}")
+            continue
+
+    return records
+
+
+def fetch_ads(industry: Optional[str] = "general", use_mock: Optional[bool] = None) -> List[RawAdRecord]:
+    """Main entry point to fetch ads, routing to live API or local mock dataset."""
+    should_mock = settings.USE_MOCK_DATA if use_mock is None else use_mock
+    target_industry = industry or "general"
+
+    if should_mock:
+        return _load_mock(industry)
+
+    records = _fetch_live(target_industry)
+
+    if not records:
+        logger.warning("Live API returned 0 records — falling back to mock.")
+        return _load_mock(industry)
+
     return records

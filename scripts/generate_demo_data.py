@@ -277,7 +277,7 @@ def main():
             genai.configure(api_key=api_key)
             model = genai.GenerativeModel("gemini-1.5-flash")
             use_gemini = True
-            print("[✓] Gemini API Key detected. Using live LLM generation.")
+            print("[+] Gemini API Key detected. Using live LLM generation.")
         except Exception as e:
             print(f"[!] Warning: Could not initialize Gemini client ({e}). Using offline synthesizer.")
     else:

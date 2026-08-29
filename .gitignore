@@ -1,11 +1,25 @@
-# Byte-compiled / optimized / DLL files
+﻿# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *.pyc
 
 # Environment variables
 .env
+.env*.local
 
 # Virtual environments
 venv/
 .venv/
+env/
+
+# Databases
+*.db
+*.sqlite
+*.sqlite3
+adlens_local.db
+adlens.db
+
+# Test & coverage caches
+.pytest_cache/
+.coverage
+htmlcov/
