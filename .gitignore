@@ -26,3 +26,6 @@ htmlcov/
 
 # Large data files
 src/data/kaggle/*.csv
+
+# Browser session state (cookies, auth tokens)
+src/data/browser_state.json

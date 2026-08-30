@@ -108,3 +108,30 @@ def analyze_hooks(ads: List[RawAdRecord]) -> HookAnalysisReport:
         dominant_language=dominant_lang,
         items=items
     )
+
+def compute_hook_saturation(ads: List[RawAdRecord]) -> dict:
+    if not ads:
+        return {}
+
+    type_counts: dict = {}
+    for ad in ads:
+        hook_text = extract_raw_hook(ad.ad_copy)
+        hook_type = classify_single_hook(hook_text)
+        type_counts[hook_type] = type_counts.get(hook_type, 0) + 1
+
+    total = len(ads)
+    result = {}
+    for hook_type, count in type_counts.items():
+        pct = round((count / total) * 100, 1)
+        if pct > 40:
+            label = "Oversaturated"
+        elif pct >= 20:
+            label = "Competitive"
+        else:
+            label = "Opportunity"
+        result[hook_type] = {
+            "count": count,
+            "percentage": pct,
+            "saturation_label": label,
+        }
+    return result

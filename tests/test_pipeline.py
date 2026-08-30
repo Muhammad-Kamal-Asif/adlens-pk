@@ -461,6 +461,51 @@ class TestDesktopApp:
         entries_after = get_watchlist(active_only=True)
         assert not any(e["page_name"] == "TestBrandPK" for e in entries_after)
 
+    def test_report_history_ui_auto_save_and_load(self):
+        """Verify Report History page populates and Load button restores metrics."""
+        import os
+        os.environ["QT_QPA_PLATFORM"] = "offscreen"
+        from PyQt6.QtWidgets import QApplication
+        from src.desktop.main_window import AdLensPKWindow
+        from src.core.fetcher import fetch_ads
+        from src.core.extractor import build_offer_matrix
+        from src.core.classifier import analyze_hooks
+        from src.core.ai_engine import generate_tactical_brief
+
+        app = QApplication.instance() or QApplication(["--platform", "offscreen"])
+        win = AdLensPKWindow()
+
+        ads = fetch_ads("Electronics", use_mock=True)
+        offers = build_offer_matrix(ads)
+        hooks = analyze_hooks(ads)
+        brief = generate_tactical_brief("Electronics", hooks, offers)
+
+        # Trigger report generation which auto-saves
+        win.industry_combo.setCurrentText("Electronics")
+        win._on_report_generated(ads, offers, hooks, brief)
+
+        # Verify Report History page updated
+        assert win.history_table.rowCount() >= 1
+        assert "Saved reports:" in win.history_count_label.text()
+
+        # Test loading historical report via row 0
+        first_row_report = {
+            "industry": "Electronics",
+            "total_ads": 99,
+            "cod_rate": 88.5,
+            "dominant_language": "Roman Urdu",
+            "dominant_hook": "Direct Offer / Discount",
+            "generated_at": "2026-08-30 21:00",
+            "brief_angle": "Historical Discount Focus",
+            "brief_whitespace": "Historical Gaps",
+            "report_json": None,
+        }
+        win._on_load_report_clicked(first_row_report)
+
+        assert win.val_total_ads.text() == "99"
+        assert win.val_cod_rate.text() == "88.5%"
+        assert win.val_dom_lang.text() == "Roman Urdu"
+
 
 # ==============================================================================
 # 6. Competitor Watchlist DB & Pipeline Tests
@@ -532,6 +577,44 @@ class TestCompetitorWatchlist:
             assert khaadi_entries[0]["is_active"] is True
 
         remove_from_watchlist("Khaadi Official")
+
+
+# ==============================================================================
+# 7. Report History Database & Pipeline Tests
+# ==============================================================================
+
+class TestReportHistory:
+    """Targeted tests for src/db/reports.py."""
+
+    def test_save_and_get_report_history(self):
+        """Verify saving a report and retrieving report history list."""
+        from src.db.reports import save_report, get_report_history, get_report_by_id
+        from src.core.fetcher import fetch_ads
+        from src.core.extractor import build_offer_matrix
+        from src.core.classifier import analyze_hooks
+        from src.core.ai_engine import generate_tactical_brief
+
+        ads = fetch_ads("Fashion", use_mock=True)
+        offers = build_offer_matrix(ads)
+        hooks = analyze_hooks(ads)
+        brief = generate_tactical_brief("Fashion", hooks, offers)
+
+        saved = save_report(offers, hooks, brief, industry="Fashion", ads=ads)
+        assert saved["id"] is not None
+        assert saved["industry"] == "Fashion"
+        assert saved["total_ads"] == len(ads)
+        assert saved["cod_rate"] == offers.cod_prevalence_pct
+        assert saved["dominant_hook"] == hooks.dominant_hook_type
+        assert saved["brief_angle"] == brief.recommended_angle
+
+        history = get_report_history()
+        assert len(history) >= 1
+        assert any(r["id"] == saved["id"] for r in history)
+
+        single = get_report_by_id(saved["id"])
+        assert single is not None
+        assert single["id"] == saved["id"]
+
 
 
 

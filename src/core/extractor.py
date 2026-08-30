@@ -4,9 +4,18 @@ from src.core.schemas import RawAdRecord, AdOfferDetails, OfferMatrixSummary
 
 # Local Commercial Triggers
 INTENT_WORDS = [
-    "fauri", "bachat", "asli", "jaldi", "sale", 
+    "fauri", "bachat", "asli", "jaldi", "sale",
     "chhoot", "limited stock", "rabta", "discount"
 ]
+
+
+def get_survivor_ads(ads: List[RawAdRecord], min_days: int = 30) -> List[RawAdRecord]:
+    """
+    Returns ads that have been running for at least min_days.
+    Useful for identifying durable, long-running creative winners.
+    """
+    return [ad for ad in ads if getattr(ad, "days_active", 0) >= min_days]
+
 
 def extract_offer_details(ad: RawAdRecord) -> AdOfferDetails:
     text = ad.ad_copy.lower()
@@ -83,3 +92,28 @@ def build_offer_matrix(ads: List[RawAdRecord]) -> OfferMatrixSummary:
         price_ranges_detected=prices,
         records=records
     )
+
+def compute_competitive_density(ads: List[RawAdRecord]) -> dict:
+    if not ads:
+        return {
+            "unique_advertisers": 0,
+            "avg_ads_per_brand": 0.0,
+            "dominant_brand": "N/A",
+            "top_5_brands": [],
+        }
+
+    brand_counts: dict = {}
+    for ad in ads:
+        brand_counts[ad.page_name] = brand_counts.get(ad.page_name, 0) + 1
+
+    unique_advertisers = len(brand_counts)
+    avg_ads_per_brand = round(len(ads) / unique_advertisers, 1)
+    dominant_brand = max(brand_counts, key=brand_counts.get)
+    top_5_brands = sorted(brand_counts.items(), key=lambda x: x[1], reverse=True)[:5]
+
+    return {
+        "unique_advertisers": unique_advertisers,
+        "avg_ads_per_brand": avg_ads_per_brand,
+        "dominant_brand": dominant_brand,
+        "top_5_brands": [{"page_name": name, "count": count} for name, count in top_5_brands],
+    }

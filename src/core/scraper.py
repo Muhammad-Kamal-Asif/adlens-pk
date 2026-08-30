@@ -92,13 +92,14 @@ async def _random_mouse_moves(page, count: int = 3) -> None:
 
 async def scrape_facebook_ads(industry: str, max_ads: int = 100) -> List[RawAdRecord]:
     """Scrapes the public Facebook Ad Library for a given industry."""
+    import sys
     results: List[RawAdRecord] = []
 
     try:
         async with async_playwright() as p:
             # FIX 5: harden launch args
             browser = await p.chromium.launch(
-                headless=True,
+                headless=False,
                 args=_LAUNCH_ARGS,
             )
 
@@ -122,8 +123,9 @@ async def scrape_facebook_ads(industry: str, max_ads: int = 100) -> List[RawAdRe
                 "delete Object.getPrototypeOf(navigator).webdriver"
             )
 
+            import urllib.parse
             # Navigate to the Ad Library directly
-            url = f"https://www.facebook.com/ads/library/?active_status=all&ad_type=all&country=PK&q={industry}"
+            url = f"https://www.facebook.com/ads/library/?active_status=all&ad_type=all&country=PK&q={urllib.parse.quote(industry)}"
             logger.info(f"Navigating to {url}")
             await page.goto(
                 url,
@@ -143,14 +145,145 @@ async def scrape_facebook_ads(industry: str, max_ads: int = 100) -> List[RawAdRe
             for _ in range(5):
                 await _random_mouse_moves(page, count=2)
                 await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-                # FIX 4: random delay 1500–4000 ms between scrolls
-                await page.wait_for_timeout(random.randint(1500, 4000))
+                # FIX 4: random delay 2000–3000 ms between scrolls
+                await page.wait_for_timeout(random.randint(2000, 3000))
 
-            # FIX 1: extract with country-selector and newline-count filters
-            extracted_data = await page.evaluate(_EXTRACT_JS)
+            # STEP 1: Count potential ad cards via JS
+            card_count = await page.evaluate("""() => {
+                const all = Array.from(document.querySelectorAll('div'));
+                const cards = [];
+                const seen = new Set();
+                for (const div of all) {
+                    const text = (div.innerText || '').trim();
+                    if (text.length < 80 || text.length > 4000) continue;
+                    if (text.includes('Log in') || text.includes('Afghanistan')) continue;
+                    const children = Array.from(div.children);
+                    const hasMatchingChild = children.some(c => {
+                        const ct = (c.innerText || '').trim();
+                        return ct.length > 80 && ct.length < 4000;
+                    });
+                    if (hasMatchingChild) continue;
+                    const key = text.substring(0, 60);
+                    if (seen.has(key)) continue;
+                    seen.add(key);
+                    cards.push(true);
+                }
+                return cards.length;
+            }""")
+            logger.info(f"JS card count: {card_count}")
+
+            # STEP 2: Process each card individually with visual highlighting
+            from datetime import datetime
+
+            card_elements = await page.query_selector_all('div')
+            processed = 0
+            seen_fingerprints = set()
+            noise_list = [
+                "Ad Library", "System status", "About", "Privacy", 
+                "Terms", "Log in", "Create account", "See more in the Ad Library",
+                "Afghanistan"
+            ]
+            skipped_duplicates = 0
+            for element in card_elements:
+                if processed >= max_ads:
+                    break
+                try:
+                    text = await element.inner_text()
+                    text = text.strip()
+                    if len(text) < 80 or len(text) > 4000:
+                        continue
+                    
+                    if any(text.startswith(noise) or noise in text for noise in noise_list):
+                        continue
+
+                    fingerprint = text[:120].replace(' ','').replace('\n','').lower()
+                    if fingerprint in seen_fingerprints:
+                        skipped_duplicates += 1
+                        continue
+                    seen_fingerprints.add(fingerprint)
+
+                    await element.scroll_into_view_if_needed()
+                    await page.wait_for_timeout(300)
+
+                    await page.evaluate("""el => {
+                        el.style.outline = '2px solid #e63946';
+                        el.style.boxShadow = '0 0 16px rgba(230,57,70,0.7)';
+                        el.style.borderRadius = '8px';
+                        el.style.transition = 'all 0.3s ease';
+                    }""", element)
+
+                    await page.wait_for_timeout(random.randint(600, 1000))
+
+                    lib_id = None
+                    try:
+                        lib_el = await element.query_selector('span:has-text("Library ID")')
+                        if not lib_el:
+                            lib_el = await element.query_selector('div:has-text("Library ID")')
+                        if lib_el:
+                            lib_text = await lib_el.inner_text()
+                            match = re.search(r'Library ID[:\s]+(\d+)', lib_text)
+                            if match:
+                                lib_id = match.group(1)
+                    except Exception:
+                        pass
+
+                    page_name = 'Unknown'
+                    try:
+                        link_el = await element.query_selector('a[href*="facebook.com"]')
+                        if link_el:
+                            pn = (await link_el.inner_text()).strip()
+                            if pn and len(pn) > 1:
+                                page_name = pn
+                    except Exception:
+                        pass
+                    if page_name == 'Unknown':
+                        lines = [l.strip() for l in text.split('\n') if l.strip()]
+                        page_name = lines[0] if lines else 'Unknown'
+
+                    days_active = 1
+                    date_match = re.search(r'(\d{1,2}\s+\w+\s+\d{4})', text)
+                    if date_match:
+                        try:
+                            start_date = datetime.strptime(date_match.group(1), '%d %B %Y')
+                            days_active = (datetime.now() - start_date).days
+                            days_active = max(1, days_active)
+                        except ValueError:
+                            try:
+                                start_date = datetime.strptime(date_match.group(1), '%d %b %Y')
+                                days_active = (datetime.now() - start_date).days
+                                days_active = max(1, days_active)
+                            except ValueError:
+                                pass
+
+                    await page.evaluate("""el => {
+                        el.style.outline = '';
+                        el.style.boxShadow = '';
+                    }""", element)
+
+                    ad_copy = text.encode('utf-8', errors='replace').decode('utf-8')
+                    ad_id = lib_id if lib_id else f"fb_{abs(hash(ad_copy[:50]))}"
+
+                    results.append(RawAdRecord(
+                        ad_id=ad_id,
+                        page_name=page_name,
+                        ad_copy=ad_copy,
+                        industry=industry,
+                        source_type="playwright_scrape",
+                        days_active=days_active,
+                    ))
+                    processed += 1
+                    logger.info(f"Card {processed}: page='{page_name}', id={ad_id}, days={days_active}")
+
+                    await page.wait_for_timeout(random.randint(200, 400))
+
+                except Exception as e:
+                    logger.debug(f"Card extraction error: {e}")
+                    continue
+
+            logger.info(f"Extracted {processed} ads total. Skipped {skipped_duplicates} duplicates.")
 
             # FIX 8: persist storage state after a successful scrape
-            if extracted_data:
+            if results:
                 try:
                     _BROWSER_STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
                     await context.storage_state(path=str(_BROWSER_STATE_PATH))
@@ -159,27 +292,6 @@ async def scrape_facebook_ads(industry: str, max_ads: int = 100) -> List[RawAdRe
                     logger.warning(f"Could not save browser state: {e}")
 
             await browser.close()
-
-            for data in extracted_data:
-                if len(results) >= max_ads:
-                    break
-
-                days_active = 1
-                days_running_text = data.get("days_running")
-                if days_running_text:
-                    match = re.search(r"\d+", days_running_text)
-                    if match:
-                        days_active = int(match.group())
-
-                results.append(
-                    RawAdRecord(
-                        source_type="playwright_scrape",
-                        page_name=data.get("advertiser_name"),
-                        ad_copy=data.get("ad_body"),
-                        industry=industry,
-                        days_active=days_active,
-                    )
-                )
 
     except Exception as e:
         logger.error(f"Error scraping Facebook ads: {e}")
@@ -194,4 +306,6 @@ async def scrape_facebook_ads(industry: str, max_ads: int = 100) -> List[RawAdRe
 
 def scrape_ads_sync(industry: str, max_ads: int = 100) -> List[RawAdRecord]:
     """Synchronous wrapper that runs the async scraper via asyncio.run()."""
-    return asyncio.run(scrape_facebook_ads(industry, max_ads))
+    from src.core.relevance import filter_by_relevance
+    results = asyncio.run(scrape_facebook_ads(industry, max_ads))
+    return filter_by_relevance(results, industry)

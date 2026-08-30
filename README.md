@@ -8,7 +8,8 @@ AdLens PK is a specialized ad intelligence, competitor tracking, and creative st
 
 ## Features
 
-- **6-Tab PyQt6 Desktop Application**: Fully native, dark-themed desktop interface built with PyQt6 and PyQtGraph, providing interactive analytical views: Market Overview, Offer Matrix, Hook Psychology, Strategy Playbook, Trend Tracker, and Competitor Watchlist.
+- **7-Tab PyQt6 Desktop Application**: Fully native, dark-themed desktop interface built with PyQt6 and PyQtGraph, providing interactive analytical views: Market Overview, Offer Matrix, Hook Psychology, Strategy Playbook, Trend Tracker, Competitor Watchlist, and Report History.
+- **Report History & Historical Audits**: Auto-saves every generated ad audit to the database and provides a dedicated archive to inspect and reload historical benchmarks into the active dashboard.
 - **Playwright Web Scraper with Bot Detection Hardening**: Automated extraction engine using Chromium with anti-fingerprint hardening, random mouse movements, variable scroll cadence, and persistent browser storage states to safely collect active ads from the public Facebook Ad Library for Pakistan.
 - **APScheduler Automated 6-Hour Ingestion**: Background scheduling engine running recurring 6-hour ingestion cycles across all major commercial industries (Fashion, Electronics, Food & Grocery, Health & Beauty, Real Estate, Education, and General Retail).
 - **SQLite Local Database with Longitudinal Storage**: Relational persistence layer managed via SQLAlchemy, storing full ad copy, advertiser identities, historical timestamps, pricing models, CTA configurations, and hook types for long-term trend analysis.
@@ -105,7 +106,7 @@ adlens-pk/
 |       |-- mock_ads.json          # Curated seed ad intelligence dataset
 |       +-- kaggle/                # Kaggle e-commerce transaction CSV directory
 |-- tests/
-|   +-- test_pipeline.py           # Unit and integration test suite (35 tests)
+|   +-- test_pipeline.py           # Unit and integration test suite (37 tests)
 |-- scripts/
 |   |-- test_kaggle_real.py        # Kaggle dataset verification script
 |   |-- test_scraper.py            # Playwright scraper smoke test

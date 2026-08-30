@@ -1,0 +1,11 @@
+{
+    "model_exists": true,
+    "last_trained": "2026-08-30T22:28:40.394750",
+    "training_records": 10053,
+    "accuracy": 0.5147716415436493,
+    "model_path": "C:\\Users\\Asif Computers\\Desktop\\adlens-pk\\src\\ml\\models\\adlens_classifier.pkl",
+    "records_used": 10053,
+    "f1_score": 0.6784440124266704,
+    "latest_model_path": "src\\ml\\models\\gbc_model_20260830_222840.pkl",
+    "latest_fb_path": "src\\ml\\models\\feature_builder_20260830_222840.pkl"
+}
