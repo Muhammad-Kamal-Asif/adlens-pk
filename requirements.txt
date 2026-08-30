@@ -11,6 +11,12 @@ pandas>=2.2.0,<3.0.0
 # Web Application UI
 streamlit>=1.35.0,<2.0.0
 
+# Desktop Application UI
+PyQt6>=6.7.0
+
+# Background Job Scheduling
+apscheduler>=3.10.0,<4.0.0
+
 # Environment Configuration
 python-dotenv>=1.0.0,<2.0.0
 
@@ -24,4 +30,8 @@ psycopg2-binary>=2.9.0
 # External Data & Enrichment
 kaggle>=1.6.0,<2.0.0
 
+
+
+# Web Scraping
+playwright>=1.40.0 # Provides both sync and async_api
 

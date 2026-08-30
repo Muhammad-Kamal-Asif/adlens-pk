@@ -13,32 +13,32 @@ MOCK_DATA_PATH = Path(__file__).resolve().parent.parent / "data" / "mock_ads.jso
 
 INDUSTRY_SEARCH_TERMS = {
     "fashion": [
-        "fashion", "clothing", "lawn", "dress", "unstitched", "shoes",
-        "kapray", "kurti", "jora", "poshak", "bachat sale"
+        "sale", "dress", "shirt", "clothing", "pk fashion",
+        "lawn", "kapray", "kurti", "unstitched"
     ],
     "food": [
-        "food delivery", "restaurant", "deals", "cafe", "fast food",
-        "khana", "mithai", "biryani", "lazeez", "nashta", "dawat"
+        "food", "delivery", "restaurant", "khana", "biryani",
+        "deals", "mithai", "fast food"
     ],
     "electronics": [
-        "electronics", "mobile phone", "laptop", "smart watch", "gadgets", "earbuds",
-        "sasta mobile", "chargers", "accessories"
+        "mobile", "phone", "laptop", "gadget", "tech",
+        "smart watch", "accessories", "sasta mobile"
     ],
     "real_estate": [
-        "real estate", "property", "plot for sale", "commercial plot", "apartments",
-        "makan", "ghar", "zameen", "plots", "kiraya"
+        "property", "plot", "house", "apartment", "zameen",
+        "makan", "ghar", "commercial plot"
     ],
     "health": [
-        "health", "supplement", "vitamins", "skincare", "fitness", "organic",
-        "sehat", "dawa", "ilaj", "desi jhari booti", "wazan"
+        "health", "supplement", "skin", "cream", "fitness",
+        "skincare", "sehat", "dawa", "organic"
     ],
     "education": [
-        "education", "online course", "university", "academy", "admissions", "training",
-        "taleem", "seekhain", "freelancing course", "huner"
+        "education", "course", "academy", "taleem", "learn",
+        "online course", "admission", "freelancing"
     ],
     "general": [
-        "sale", "offer", "discount", "shopping", "deals",
-        "bachat", "sasta", "muft delivery", "fauri rabta", "chhoot"
+        "sale", "offer", "buy", "discount", "pk",
+        "bachat", "sasta", "muft delivery", "deals"
     ],
 }
 
@@ -80,57 +80,79 @@ def _fetch_live(industry: str) -> List[RawAdRecord]:
 
     records: List[RawAdRecord] = []
     seen_ad_ids = set()
+    MAX_RECORDS = 50
+    MAX_PAGES_PER_TERM = 3
 
-    for term in terms[:3]:
-        try:
-            resp = requests.get(
-                "https://graph.facebook.com/v19.0/ads_archive",
-                params={
-                    "access_token": settings.META_API_TOKEN,
-                    "ad_reached_countries": json.dumps(["PK"]),
-                    "search_terms": term,
-                    "ad_type": "ALL",
-                    "limit": 25,
-                    "fields": "id,page_name,ad_creative_bodies",
-                },
-                timeout=12,
-            )
-            resp.raise_for_status()
+    for term in terms:
+        if len(records) >= MAX_RECORDS:
+            break
 
-            payload = resp.json()
-            ad_items = payload.get("data", [])
+        page_count = 0
+        next_url = None
 
-            for ad in ad_items:
-                ad_id = str(ad.get("id", "")).strip()
-                if not ad_id or ad_id in seen_ad_ids:
-                    continue
-
-                bodies = ad.get("ad_creative_bodies", [])
-                if not bodies or not isinstance(bodies, list):
-                    continue
-
-                copy = bodies[0]
-                if not copy or not isinstance(copy, str):
-                    continue
-
-                # Skip any ad where the body contains the word "removed"
-                if "removed" in copy.lower():
-                    continue
-
-                seen_ad_ids.add(ad_id)
-                records.append(
-                    RawAdRecord(
-                        ad_id=ad_id,
-                        page_name=ad.get("page_name", "Unknown"),
-                        ad_copy=copy,
-                        industry=industry if industry else "general",
-                        source_type="live_api",
+        while page_count < MAX_PAGES_PER_TERM and len(records) < MAX_RECORDS:
+            page_count += 1
+            try:
+                if next_url:
+                    resp = requests.get(next_url, timeout=12)
+                else:
+                    resp = requests.get(
+                        "https://graph.facebook.com/v19.0/ads_archive",
+                        params={
+                            "access_token": settings.META_API_TOKEN,
+                            "ad_reached_countries": json.dumps(["PK"]),
+                            "search_terms": term,
+                            "ad_type": "ALL",
+                            "limit": 50,
+                            "fields": "id,page_name,ad_creative_bodies",
+                        },
+                        timeout=12,
                     )
-                )
+                resp.raise_for_status()
 
-        except Exception as e:
-            logger.warning(f"Failed to fetch live ads for term '{term}': {e}")
-            continue
+                payload = resp.json()
+                ad_items = payload.get("data", [])
+
+                for ad in ad_items:
+                    if len(records) >= MAX_RECORDS:
+                        break
+
+                    ad_id = str(ad.get("id", "")).strip()
+                    if not ad_id or ad_id in seen_ad_ids:
+                        continue
+
+                    bodies = ad.get("ad_creative_bodies", [])
+                    if not bodies or not isinstance(bodies, list):
+                        continue
+
+                    copy = bodies[0]
+                    if not copy or not isinstance(copy, str):
+                        continue
+
+                    seen_ad_ids.add(ad_id)
+                    records.append(
+                        RawAdRecord(
+                            ad_id=ad_id,
+                            page_name=ad.get("page_name", "Unknown"),
+                            ad_copy=copy,
+                            industry=industry if industry else "general",
+                            source_type="live_api",
+                        )
+                    )
+
+                # Pagination: fetch next page URL if available
+                paging = payload.get("paging", {})
+                next_url = paging.get("next")
+                if not next_url:
+                    break
+
+            except requests.exceptions.RequestException as e:
+                status = e.response.status_code if e.response is not None else "Connection Error"
+                logger.warning(f"Failed for term '{term}' (page {page_count}): HTTP {status}")
+                break
+            except Exception:
+                logger.warning(f"Failed for term '{term}' (page {page_count}): Unknown Error")
+                break
 
     return records
 

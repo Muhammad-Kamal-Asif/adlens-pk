@@ -1,4 +1,4 @@
-import streamlit as st
+﻿import streamlit as st
 import pandas as pd
 from src.core.fetcher import fetch_ads
 from src.core.extractor import build_offer_matrix
@@ -15,110 +15,200 @@ st.markdown(
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
-    /* 4 & 6. Global Typography & Emoji Fallback */
+    /* Global Typography & Dark Theme */
     html, body, [class*="css"], .stApp {
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol" !important;
+        background-color: #0f1117 !important;
+        color: #ffffff !important;
     }
 
-    /* 1. Remove default Streamlit top padding and header padding */
+    /* Remove default Streamlit top padding and header */
     .block-container {
-        padding-top: 1rem !important;
-        padding-bottom: 2rem !important;
+        padding-top: 1.25rem !important;
+        padding-bottom: 3rem !important;
+        max-width: 100% !important;
     }
     header[data-testid="stHeader"] {
         background: transparent !important;
         padding-top: 0 !important;
     }
 
-    /* 2. Sidebar Dark Theme */
+    /* Sidebar Dark Theme (#1a1d27) */
     section[data-testid="stSidebar"] {
-        background-color: #0f1117 !important;
+        background-color: #1a1d27 !important;
+        border-right: 1px solid #2d3148 !important;
     }
     section[data-testid="stSidebar"] * {
         color: #ffffff !important;
     }
+    section[data-testid="stSidebar"] .stSelectbox [data-baseweb="select"] {
+        background-color: #1e2130 !important;
+        border: 1px solid #2d3148 !important;
+        border-radius: 8px !important;
+        color: #ffffff !important;
+    }
     section[data-testid="stSidebar"] .stTextInput input {
-        background-color: #1e222d !important;
+        background-color: #1e2130 !important;
         color: #ffffff !important;
-        border: 1px solid #30363d !important;
-    }
-    section[data-testid="stSidebar"] [data-testid="stMetric"] {
-        background-color: #1e222d !important;
-        border: 1px solid #30363d !important;
+        border: 1px solid #2d3148 !important;
         border-radius: 8px !important;
-        padding: 1rem !important;
     }
-    section[data-testid="stSidebar"] [data-testid="stMetricLabel"] * {
-        color: #9ca3af !important;
-        font-size: 0.75rem !important;
-        text-transform: uppercase !important;
-        letter-spacing: 0.05em !important;
-    }
-    section[data-testid="stSidebar"] [data-testid="stMetricValue"] * {
+    section[data-testid="stSidebar"] .stCheckbox span {
         color: #ffffff !important;
-        font-size: 1.5rem !important;
-        font-weight: 700 !important;
     }
 
-    /* 3. Metric Card Styling (Main Area) */
-    .main [data-testid="stMetric"],
-    .main [data-testid="metric-container"] {
-        background-color: #ffffff !important;
-        border-radius: 8px !important;
-        padding: 1rem !important;
-        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.08), 0 1px 2px -1px rgba(0, 0, 0, 0.08) !important;
-        border: 1px solid #e5e7eb !important;
-    }
-    .main [data-testid="stMetricLabel"] *,
-    .main [data-testid="metric-container"] label {
-        font-size: 0.75rem !important;
-        color: #6b7280 !important;
-        text-transform: uppercase !important;
-        letter-spacing: 0.05em !important;
+    /* Primary Action Button (#e63946) */
+    button[kind="primary"] {
+        background-color: #e63946 !important;
+        border: none !important;
+        color: #ffffff !important;
         font-weight: 600 !important;
+        border-radius: 8px !important;
+        padding: 0.6rem 1.2rem !important;
+        transition: all 0.2s ease !important;
     }
-    .main [data-testid="stMetricValue"] *,
-    .main [data-testid="metric-container"] [data-testid="stMetricValue"] {
-        font-size: 1.75rem !important;
-        font-weight: 700 !important;
-        color: #111827 !important;
+    button[kind="primary"]:hover {
+        background-color: #d62828 !important;
+        box-shadow: 0 4px 12px rgba(230, 57, 70, 0.35) !important;
     }
 
-    /* 5. Tab Labels (Uppercase, letter-spaced, smaller font size, no bold) */
+    /* Tab Labels Styling */
     button[data-baseweb="tab"],
     .stTabs [data-baseweb="tab"],
     [data-testid="stTab"] {
         text-transform: uppercase !important;
         letter-spacing: 0.08em !important;
-        font-size: 0.8rem !important;
-        font-weight: 400 !important;
+        font-size: 0.82rem !important;
+        font-weight: 500 !important;
+        color: #9ca3af !important;
+        background-color: transparent !important;
+        border: none !important;
+        padding: 0.75rem 1.25rem !important;
+    }
+    button[data-baseweb="tab"][aria-selected="true"],
+    .stTabs [data-baseweb="tab"][aria-selected="true"] {
+        color: #ffffff !important;
+        border-bottom: 2px solid #e63946 !important;
+        font-weight: 700 !important;
     }
     button[data-baseweb="tab"] p,
     .stTabs [data-baseweb="tab"] p,
     [data-testid="stTab"] p {
         text-transform: uppercase !important;
         letter-spacing: 0.08em !important;
-        font-size: 0.8rem !important;
-        font-weight: 400 !important;
+        font-size: 0.82rem !important;
+    }
+
+    /* Dataframe Container */
+    [data-testid="stDataFrame"] {
+        border: 1px solid #2d3148 !important;
+        border-radius: 8px !important;
+        overflow: hidden !important;
     }
     </style>
     """,
     unsafe_allow_html=True,
 )
 
-st.title("AdLens PK — Pakistani Digital Ad Intelligence")
-st.markdown("Automated market intelligence and creative strategy for local SMEs.")
 
-st.sidebar.header("Analysis Parameters")
-niche = st.sidebar.text_input("Industry / Niche", value="E-commerce")
+def render_metric_card(label: str, value: str | int | float) -> str:
+    """Renders a styled HTML metric card with left accent border."""
+    return f"""
+    <div style="
+        background-color: #1e2130;
+        border-radius: 10px;
+        padding: 1.5rem;
+        border-left: 3px solid #e63946;
+        border-top: 1px solid #2d3148;
+        border-right: 1px solid #2d3148;
+        border-bottom: 1px solid #2d3148;
+        margin-bottom: 1rem;
+    ">
+        <div style="font-size: 0.75rem; font-weight: 600; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.35rem;">
+            {label}
+        </div>
+        <div style="font-size: 1.75rem; font-weight: 700; color: #ffffff; line-height: 1.2;">
+            {value}
+        </div>
+    </div>
+    """
+
+
+# Header Banner
+st.markdown(
+    """
+    <div style="
+        background-color: #1e2130;
+        border-bottom: 3px solid #e63946;
+        border-radius: 10px 10px 0 0;
+        padding: 1.5rem 2rem;
+        margin-bottom: 2rem;
+        border-top: 1px solid #2d3148;
+        border-left: 1px solid #2d3148;
+        border-right: 1px solid #2d3148;
+    ">
+        <div style="display: flex; align-items: baseline; gap: 0.85rem; flex-wrap: wrap;">
+            <span style="font-size: 1.85rem; font-weight: 800; color: #ffffff; letter-spacing: -0.02em;">
+                AdLens PK
+            </span>
+            <span style="font-size: 1.05rem; font-weight: 500; color: #9ca3af;">
+                Pakistani Digital Ad Intelligence Engine
+            </span>
+        </div>
+        <div style="font-size: 0.85rem; color: #9ca3af; margin-top: 0.35rem;">
+            Automated market intelligence and creative strategy for local SMEs & brands.
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
+# Sidebar Configuration
+st.sidebar.markdown(
+    """
+    <div style="font-size: 1.1rem; font-weight: 700; color: #ffffff; margin-bottom: 1rem; border-left: 3px solid #e63946; padding-left: 0.6rem;">
+        Analysis Parameters
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
+industry_options = [
+    "Fashion",
+    "Electronics",
+    "Food & Grocery",
+    "Health & Beauty",
+    "Real Estate",
+    "Education",
+    "Home & Living",
+    "Kids & Baby",
+    "General",
+]
+selected_industry = st.sidebar.selectbox("Industry / Niche", options=industry_options)
+
+if selected_industry == "General":
+    custom_niche = st.sidebar.text_input("Custom Niche", placeholder="Type a custom niche...")
+    niche = custom_niche.strip() if custom_niche and custom_niche.strip() else "General"
+else:
+    niche = selected_industry
+
 use_mock = st.sidebar.checkbox("Use Local Dataset (Demo Mode)", value=True)
 
+# Thin red horizontal divider
+st.sidebar.markdown(
+    "<hr style='border: 0; height: 1px; background-color: #e63946; margin: 1.5rem 0;'>",
+    unsafe_allow_html=True,
+)
+
 stored_ads = get_all_ads()
-st.sidebar.metric("Total Ads in Database", len(stored_ads))
+st.sidebar.markdown(
+    render_metric_card("Total Ads in Database", len(stored_ads)),
+    unsafe_allow_html=True,
+)
 
 if st.sidebar.button("Generate Intelligence Report", type="primary"):
     with st.spinner("Ingesting Pakistani ad data..."):
-        ads = fetch_ads(industry=None, use_mock=use_mock)
+        ads = fetch_ads(industry=niche, use_mock=use_mock)
         if not use_mock and ads:
             save_ads(ads)
         
@@ -141,16 +231,23 @@ if st.sidebar.button("Generate Intelligence Report", type="primary"):
     ])
     
     with tab1:
-        st.subheader("High-Level Campaign Metrics")
+        st.markdown("<div style='font-size: 1.25rem; font-weight: 700; color: #ffffff; margin-bottom: 1.2rem;'>High-Level Campaign Metrics</div>", unsafe_allow_html=True)
         col1, col2, col3 = st.columns(3)
-        col1.metric("Total Ads Evaluated", offer_matrix.total_ads_evaluated)
-        col2.metric("COD Adoption Rate", f"{offer_matrix.cod_prevalence_pct}%")
-        col3.metric("Dominant Copy Language", hook_report.dominant_language)
+        with col1:
+            st.markdown(render_metric_card("Total Ads Evaluated", offer_matrix.total_ads_evaluated), unsafe_allow_html=True)
+        with col2:
+            st.markdown(render_metric_card("COD Adoption Rate", f"{offer_matrix.cod_prevalence_pct}%"), unsafe_allow_html=True)
+        with col3:
+            st.markdown(render_metric_card("Dominant Copy Language", hook_report.dominant_language), unsafe_allow_html=True)
         
     with tab2:
-        st.subheader("Commercial & Offer Mechanics")
-        st.write(f"**Most Common Call-to-Action:** {offer_matrix.most_common_cta}")
-        st.write(f"**Free Delivery Prevalence:** {offer_matrix.free_shipping_prevalence_pct}%")
+        st.markdown("<div style='font-size: 1.25rem; font-weight: 700; color: #ffffff; margin-bottom: 1.2rem;'>Commercial & Offer Mechanics</div>", unsafe_allow_html=True)
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown(render_metric_card("Most Common Call-to-Action", offer_matrix.most_common_cta), unsafe_allow_html=True)
+        with col2:
+            st.markdown(render_metric_card("Free Delivery Prevalence", f"{offer_matrix.free_shipping_prevalence_pct}%"), unsafe_allow_html=True)
         
         df_offers = pd.DataFrame([r.model_dump() for r in offer_matrix.records])
         st.dataframe(
@@ -159,8 +256,9 @@ if st.sidebar.button("Generate Intelligence Report", type="primary"):
         )
         
     with tab3:
-        st.subheader("Creative Hook Breakdown")
-        st.write(f"**Dominant Psychological Angle:** {hook_report.dominant_hook_type}")
+        st.markdown("<div style='font-size: 1.25rem; font-weight: 700; color: #ffffff; margin-bottom: 1.2rem;'>Creative Hook Breakdown</div>", unsafe_allow_html=True)
+        
+        st.markdown(render_metric_card("Dominant Psychological Angle", hook_report.dominant_hook_type), unsafe_allow_html=True)
         
         df_hooks = pd.DataFrame([h.model_dump() for h in hook_report.items])
         st.dataframe(
@@ -169,21 +267,27 @@ if st.sidebar.button("Generate Intelligence Report", type="primary"):
         )
         
     with tab4:
-        st.subheader("AI-Generated Tactical Brief")
+        st.markdown("<div style='font-size: 1.25rem; font-weight: 700; color: #ffffff; margin-bottom: 1.2rem;'>AI-Generated Tactical Brief</div>", unsafe_allow_html=True)
         with st.spinner("Synthesizing creative whitespace..."):
             brief = generate_tactical_brief(niche, hook_report, offer_matrix)
             
-        st.markdown(f"**Target Niche:** {brief.target_niche}")
-        st.info(f"**Market Whitespace:** {brief.market_whitespace}")
-        st.success(f"**Recommended Angle:** {brief.recommended_angle}")
+        st.markdown(
+            f"""
+            <div style="background-color: #1e2130; border: 1px solid #2d3148; border-left: 3px solid #e63946; border-radius: 10px; padding: 1.5rem; margin-bottom: 1.5rem;">
+                <div style="margin-bottom: 0.85rem;"><strong style="color: #ffffff;">🎯 Target Niche:</strong> <span style="color: #9ca3af;">{brief.target_niche}</span></div>
+                <div style="margin-bottom: 0.85rem;"><strong style="color: #ffffff;">🔍 Market Whitespace:</strong> <span style="color: #9ca3af;">{brief.market_whitespace}</span></div>
+                <div style="margin-bottom: 0.85rem;"><strong style="color: #ffffff;">🧠 Recommended Angle:</strong> <span style="color: #ffffff; font-weight: 600;">{brief.recommended_angle}</span></div>
+                <div style="margin-bottom: 0.85rem;"><strong style="color: #ffffff;">📦 Recommended Offer Structure:</strong> <span style="color: #9ca3af;">{brief.recommended_offer_structure}</span></div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
         
-        st.markdown("**Suggested Copy Hooks (Ready to Test):**")
+        st.markdown("<div style='font-size: 1.05rem; font-weight: 600; color: #ffffff; margin: 1rem 0 0.5rem 0;'>✍️ Suggested Copy Hooks (Ready to Test):</div>", unsafe_allow_html=True)
         for h in brief.suggested_hooks:
             st.markdown(f"- {h}")
             
-        st.markdown(f"**Recommended Offer Structure:** {brief.recommended_offer_structure}")
-
-        st.divider()
+        st.markdown("<hr style='border: 0; height: 1px; background-color: #2d3148; margin: 1.5rem 0;'>", unsafe_allow_html=True)
 
         # Format Tactical Creative Brief text file export
         hooks_formatted = "\n".join([f"  - {h}" for h in brief.suggested_hooks])
@@ -210,9 +314,9 @@ if st.sidebar.button("Generate Intelligence Report", type="primary"):
         )
 
     with tab5:
-        st.subheader("Longitudinal Ad Intelligence & Market Trends")
+        st.markdown("<div style='font-size: 1.25rem; font-weight: 700; color: #ffffff; margin-bottom: 1.2rem;'>Longitudinal Ad Intelligence & Market Trends</div>", unsafe_allow_html=True)
 
-        # 3. Market Demand Signal from Kaggle
+        # Market Demand Signal from Kaggle
         demand_signal = get_demand_context(niche if niche else "general")
         st.info(f"**Pakistan Market Demand Signal**\n\n{demand_signal}")
 
@@ -220,7 +324,6 @@ if st.sidebar.button("Generate Intelligence Report", type="primary"):
         all_db_ads = get_all_ads()
         trend_data = get_trend_data()
 
-        # 4. Metrics Row
         if all_db_ads:
             df_all = pd.DataFrame(all_db_ads)
             total_tracked = len(df_all)
@@ -236,17 +339,19 @@ if st.sidebar.button("Generate Intelligence Report", type="primary"):
             most_active_ind = "N/A"
 
         m1, m2, m3 = st.columns(3)
-        m1.metric("Total Ads Tracked (all time)", total_tracked)
-        m2.metric("Unique Pages Seen", unique_pages)
-        m3.metric("Most Active Industry", most_active_ind)
+        with m1:
+            st.markdown(render_metric_card("Total Ads Tracked (all time)", total_tracked), unsafe_allow_html=True)
+        with m2:
+            st.markdown(render_metric_card("Unique Pages Seen", unique_pages), unsafe_allow_html=True)
+        with m3:
+            st.markdown(render_metric_card("Most Active Industry", most_active_ind), unsafe_allow_html=True)
 
-        # 5. Warning if only 1 day of data
         distinct_days = len(trend_data) if trend_data else 0
         if distinct_days <= 1:
             st.warning("Trend data builds over time. Run the app daily to see patterns emerge.")
 
-        # 1. Number of ads pulled per day line chart
-        st.subheader("Ads Pulled Per Day")
+        # Line Chart 1: Number of ads pulled per day
+        st.markdown("<div style='font-size: 1.1rem; font-weight: 600; color: #ffffff; margin: 1.5rem 0 0.8rem 0;'>Ads Pulled Per Day</div>", unsafe_allow_html=True)
         if trend_data:
             df_trends = pd.DataFrame(trend_data)
             df_trends["date"] = pd.to_datetime(df_trends["date"])
@@ -256,8 +361,8 @@ if st.sidebar.button("Generate Intelligence Report", type="primary"):
         else:
             st.caption("No historical ingestion data available yet.")
 
-        # 2. COD Adoption Percentage Per Day line chart
-        st.subheader("COD Adoption Over Time (%)")
+        # Line Chart 2: COD Adoption Percentage Per Day
+        st.markdown("<div style='font-size: 1.1rem; font-weight: 600; color: #ffffff; margin: 1.5rem 0 0.8rem 0;'>COD Adoption Over Time (%)</div>", unsafe_allow_html=True)
         if not df_all.empty and "pulled_at" in df_all.columns and "has_cod" in df_all.columns:
             df_all["date"] = pd.to_datetime(df_all["pulled_at"]).dt.date
             cod_trend = (
@@ -269,4 +374,3 @@ if st.sidebar.button("Generate Intelligence Report", type="primary"):
             st.line_chart(cod_trend.set_index("date")["COD Adoption (%)"])
         else:
             st.caption("No COD trend data available yet.")
-

@@ -2,14 +2,14 @@ from pydantic import BaseModel, Field
 from typing import List, Optional, Literal
 
 class RawAdRecord(BaseModel):
-    ad_id: str
+    ad_id: str = Field(default="ad_scraped")
     page_name: str
     ad_copy: str
     media_type: Literal["image", "video", "carousel", "unknown"] = "image"
     cta_raw: Optional[str] = "LEARN_MORE"
     days_active: int = 1
     industry: str
-    source_type: Literal["curated_seed", "live_api"] = "curated_seed"
+    source_type: Literal["curated_seed", "live_api", "playwright_scrape"] = "curated_seed"
 
 class AdOfferDetails(BaseModel):
     ad_id: str
