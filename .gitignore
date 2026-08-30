@@ -23,3 +23,6 @@ adlens.db
 .pytest_cache/
 .coverage
 htmlcov/
+
+# Large data files
+src/data/kaggle/*.csv
