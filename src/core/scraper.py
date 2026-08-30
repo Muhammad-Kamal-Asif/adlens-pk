@@ -185,6 +185,10 @@ async def scrape_facebook_ads(industry: str, max_ads: int = 100) -> List[RawAdRe
         logger.error(f"Error scraping Facebook ads: {e}")
         return []
 
+    if results:
+        from src.db.watchlist import check_and_update_watchlist
+        check_and_update_watchlist(results)
+
     return results
 
 

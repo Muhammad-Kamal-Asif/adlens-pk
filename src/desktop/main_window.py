@@ -1,6 +1,10 @@
-from typing import Any, Dict, List, Optional, Tuple
-from PyQt6.QtCore import Qt, QThread, pyqtSignal
-from PyQt6.QtGui import QColor, QFont, QPalette
+import os
+import sys
+from collections import Counter
+from typing import List, Optional, Tuple, Dict, Any
+
+from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer, QDateTime
+from PyQt6.QtGui import QColor, QFont, QPalette, QIcon, QPainter, QPixmap
 from PyQt6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -10,12 +14,16 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QHeaderView,
     QLabel,
+    QLineEdit,
     QListWidget,
     QListWidgetItem,
     QMainWindow,
+    QMenu,
     QPushButton,
     QScrollArea,
     QStackedWidget,
+    QStatusBar,
+    QSystemTrayIcon,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
@@ -32,10 +40,14 @@ from src.core.fetcher import fetch_ads
 from src.core.extractor import build_offer_matrix
 from src.core.classifier import analyze_hooks
 from src.core.ai_engine import generate_tactical_brief
-from src.core.kaggle_enricher import get_demand_context
-from src.db.repository import get_all_ads, get_trend_data
-
-import pandas as pd
+from src.core.exporter import export_report_pdf
+from src.db.watchlist import (
+    add_to_watchlist,
+    remove_from_watchlist,
+    get_watchlist,
+    update_watchlist_stats,
+)
+from src.db.repository import init_db
 
 
 class AdFetchWorker(QThread):
@@ -69,38 +81,20 @@ class AdFetchWorker(QThread):
             self.work_finished.emit()
 
 
-
-class TrendDataWorker(QThread):
-    """Background worker that loads DB stats and demand context for the Trend Tracker page."""
-
-    data_ready = pyqtSignal(list, list, str)
-    error_occurred = pyqtSignal(str)
-
-    def __init__(self, industry: str) -> None:
-        super().__init__()
-        self.industry = industry
-
-    def run(self) -> None:
-        try:
-            all_ads = get_all_ads()
-            trend_rows = get_trend_data()
-            demand_text = get_demand_context(self.industry or "general")
-            self.data_ready.emit(all_ads, trend_rows, demand_text)
-        except Exception as exc:
-            self.error_occurred.emit(str(exc))
-
-
 class AdLensPKWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
         self.setWindowTitle("AdLens PK")
         self.setMinimumSize(1200, 850)
         self._worker: Optional[AdFetchWorker] = None
-        self._trend_worker: Optional[TrendDataWorker] = None
         self._ads: List[RawAdRecord] = []
         self._offer_matrix: Optional[OfferMatrixSummary] = None
         self._hook_report: Optional[HookAnalysisReport] = None
         self._brief: Optional[TacticalCreativeBrief] = None
+        
+        # Ensure database tables exist
+        init_db()
+
         self._apply_dark_theme()
 
         central = QWidget()
@@ -115,6 +109,105 @@ class AdLensPKWindow(QMainWindow):
 
         self.content_stack = self._build_content_stack()
         main_layout.addWidget(self.content_stack, 1)
+
+        self._setup_status_bar()
+        self._refresh_watchlist_table()
+        self._setup_tray()
+
+    def _make_tray_icon(self) -> QIcon:
+        pixmap = QPixmap(48, 48)
+        pixmap.fill(QColor("#e63946"))
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        font = QFont("Helvetica", 16, QFont.Weight.Bold)
+        painter.setFont(font)
+        painter.setPen(QColor("#ffffff"))
+        painter.drawText(pixmap.rect(), Qt.AlignmentFlag.AlignCenter, "AL")
+        painter.end()
+        return QIcon(pixmap)
+
+    def _setup_tray(self) -> None:
+        self._tray = QSystemTrayIcon(self._make_tray_icon(), parent=self)
+        self._tray.setToolTip("AdLens PK — Ad Intelligence Engine")
+
+        menu = QMenu()
+        menu.setStyleSheet("""
+            QMenu {
+                background-color: #1e2130;
+                color: #ffffff;
+                border: 1px solid #2d3148;
+                border-radius: 6px;
+                padding: 4px;
+            }
+            QMenu::item {
+                padding: 8px 20px;
+                border-radius: 4px;
+            }
+            QMenu::item:selected {
+                background-color: #e63946;
+            }
+        """)
+
+        open_action = menu.addAction("Open AdLens PK")
+        open_action.triggered.connect(self._tray_open)
+
+        run_action = menu.addAction("Run Scrape Now")
+        run_action.triggered.connect(self._tray_run_scrape)
+
+        menu.addSeparator()
+
+        quit_action = menu.addAction("Quit")
+        quit_action.triggered.connect(QApplication.instance().quit)
+
+        self._tray.setContextMenu(menu)
+        self._tray.activated.connect(self._on_tray_activated)
+        self._tray.show()
+
+    def _tray_open(self) -> None:
+        self.showNormal()
+        self.activateWindow()
+        self.raise_()
+
+    def _tray_run_scrape(self) -> None:
+        if self._worker and self._worker.isRunning():
+            return
+        self._on_generate_clicked()
+
+    def _on_tray_activated(self, reason: QSystemTrayIcon.ActivationReason) -> None:
+        if reason == QSystemTrayIcon.ActivationReason.DoubleClick:
+            self._tray_open()
+
+    def closeEvent(self, event) -> None:
+        event.ignore()
+        self.hide()
+        self._tray.showMessage(
+            "AdLens PK",
+            "AdLens PK is running in the background. Scheduler active.",
+            QSystemTrayIcon.MessageIcon.Information,
+            3000,
+        )
+
+    def _setup_status_bar(self) -> None:
+        self.statusBarWidget = QStatusBar()
+        self.statusBarWidget.setStyleSheet("background-color: #1a1d27; color: #9ca3af; border-top: 1px solid #2d3148;")
+        self.setStatusBar(self.statusBarWidget)
+
+        self.status_time = QLabel()
+        self.status_db = QLabel("Total Ads in DB: 0")
+        self.status_scheduler = QLabel("Scheduler: Active (6h interval)")
+
+        self.statusBarWidget.addWidget(self.status_db)
+        self.statusBarWidget.addWidget(self.status_scheduler)
+        self.statusBarWidget.addPermanentWidget(self.status_time)
+
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self._update_status)
+        self.timer.start(60000)
+        self._update_status()
+
+    def _update_status(self) -> None:
+        now = QDateTime.currentDateTime().toString("yyyy-MM-dd HH:mm")
+        self.status_time.setText(f"Current Time: {now}")
 
     def _apply_dark_theme(self) -> None:
         palette = QPalette()
@@ -152,6 +245,17 @@ class AdLensPKWindow(QMainWindow):
                 color: #ffffff;
                 selection-background-color: #e63946;
                 border: 1px solid #2d3148;
+            }
+            QLineEdit {
+                background-color: #1e2130;
+                color: #ffffff;
+                border: 1px solid #2d3148;
+                border-radius: 8px;
+                padding: 8px 12px;
+                font-size: 13px;
+            }
+            QLineEdit:focus {
+                border: 1px solid #e63946;
             }
             QCheckBox {
                 color: #9ca3af;
@@ -266,7 +370,6 @@ class AdLensPKWindow(QMainWindow):
             "General",
         ]
         self.industry_combo.addItems(self.industry_options)
-        self.industry_combo.currentTextChanged.connect(self._refresh_trend_tracker)
         layout.addWidget(self.industry_combo)
 
         self.demo_checkbox = QCheckBox("Use Local Dataset (Demo Mode)")
@@ -310,6 +413,7 @@ class AdLensPKWindow(QMainWindow):
             "Hook Psychology",
             "Strategy Playbook",
             "Trend Tracker",
+            "Watchlist",
         ]
         for index, name in enumerate(self.page_names):
             btn = QPushButton(name)
@@ -404,6 +508,47 @@ class AdLensPKWindow(QMainWindow):
         layout.addStretch()
         return page
 
+    def _build_offer_matrix_page(self) -> QWidget:
+        """Constructs Page 1: Offer Matrix."""
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        layout.setContentsMargins(32, 32, 32, 32)
+        layout.setSpacing(20)
+        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+
+        header_label = QLabel("Offer Matrix")
+        header_font = QFont()
+        header_font.setPointSize(24)
+        header_font.setBold(True)
+        header_label.setFont(header_font)
+        header_label.setStyleSheet("color: #ffffff;")
+        layout.addWidget(header_label)
+
+        sub_label = QLabel("Commercial terms, pricing strategies, cash-on-delivery adoption, and primary calls-to-action.")
+        sub_label.setStyleSheet("color: #9ca3af; font-size: 14px;")
+        layout.addWidget(sub_label)
+
+        cards_layout = QHBoxLayout()
+        cards_layout.setSpacing(18)
+        card_cta, self.val_cta = self._create_metric_card("Most Common CTA", "-", "Dominant call to action")
+        card_free, self.val_free_delivery = self._create_metric_card("Free Delivery", "-", "Prevalence of free shipping")
+        card_cod, self.val_offer_cod = self._create_metric_card("COD Adoption Rate", "-", "Cash on delivery availability")
+        card_price, self.val_price_ranges = self._create_metric_card("Price Ranges", "-", "Detected price brackets")
+        cards_layout.addWidget(card_cta)
+        cards_layout.addWidget(card_free)
+        cards_layout.addWidget(card_cod)
+        cards_layout.addWidget(card_price)
+        layout.addLayout(cards_layout)
+
+        self.offer_table = QTableWidget(0, 4)
+        self.offer_table.setHorizontalHeaderLabels(["Page Name", "Price Mentioned", "Has COD", "Primary CTA"])
+        self.offer_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.offer_table.verticalHeader().setVisible(False)
+        self.offer_table.setMinimumHeight(350)
+        layout.addWidget(self.offer_table, 1)
+
+        return page
+
     def _build_hook_psychology_page(self) -> QWidget:
         """Constructs Page 2: Hook Psychology with Dominant Angle metric card and detailed hooks table."""
         page = QWidget()
@@ -485,7 +630,7 @@ class AdLensPKWindow(QMainWindow):
 
         header_row.addStretch()
 
-        self.export_button = QPushButton("Export Strategy (.txt)")
+        self.export_button = QPushButton("Export Full Report (PDF)")
         self.export_button.setStyleSheet("""
             QPushButton {
                 background-color: #1e2130;
@@ -506,7 +651,7 @@ class AdLensPKWindow(QMainWindow):
             }
         """)
         self.export_button.setEnabled(False)
-        self.export_button.clicked.connect(self._on_export_strategy_clicked)
+        self.export_button.clicked.connect(self._on_export_pdf_clicked)
         header_row.addWidget(self.export_button)
 
         layout.addLayout(header_row)
@@ -585,6 +730,96 @@ class AdLensPKWindow(QMainWindow):
 
         return page
 
+    def _build_watchlist_page(self) -> QWidget:
+        """Constructs Page 5: Competitor Watchlist."""
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        layout.setContentsMargins(32, 32, 32, 32)
+        layout.setSpacing(20)
+        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+
+        # Header
+        header_label = QLabel("Competitor Watchlist")
+        header_font = QFont()
+        header_font.setPointSize(24)
+        header_font.setBold(True)
+        header_label.setFont(header_font)
+        header_label.setStyleSheet("color: #ffffff;")
+        layout.addWidget(header_label)
+
+        sub_label = QLabel("Track specific competitor Facebook brand pages and monitor their advertising activity in real-time.")
+        sub_label.setStyleSheet("color: #9ca3af; font-size: 14px;")
+        layout.addWidget(sub_label)
+
+        # Active monitoring counter label at the top
+        self.watchlist_active_label = QLabel("Active monitoring: 0 pages")
+        self.watchlist_active_label.setStyleSheet("color: #10b981; font-size: 14px; font-weight: 600;")
+        layout.addWidget(self.watchlist_active_label)
+
+        # Add to watchlist controls card
+        input_card = QFrame()
+        input_card.setStyleSheet("""
+            QFrame {
+                background-color: #1e2130;
+                border: 1px solid #2d3148;
+                border-radius: 10px;
+                padding: 12px;
+            }
+        """)
+        input_layout = QHBoxLayout(input_card)
+        input_layout.setContentsMargins(12, 8, 12, 8)
+        input_layout.setSpacing(12)
+
+        self.watchlist_input = QLineEdit()
+        self.watchlist_input.setPlaceholderText("Enter competitor Facebook page name (e.g. Khaadi, Daraz, Junaid Jamshed)...")
+        input_layout.addWidget(self.watchlist_input, 2)
+
+        self.watchlist_industry_combo = QComboBox()
+        self.watchlist_industry_combo.addItems(self.industry_options)
+        input_layout.addWidget(self.watchlist_industry_combo, 1)
+
+        add_btn = QPushButton("Add Page")
+        add_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #e63946;
+                color: #ffffff;
+                border: none;
+                border-radius: 8px;
+                padding: 10px 20px;
+                font-weight: 600;
+            }
+            QPushButton:hover {
+                background-color: #d62828;
+            }
+        """)
+        add_btn.clicked.connect(self._on_add_to_watchlist)
+        input_layout.addWidget(add_btn)
+
+        layout.addWidget(input_card)
+
+        # Watchlist Table
+        self.watchlist_table = QTableWidget()
+        self.watchlist_table.setColumnCount(6)
+        self.watchlist_table.setHorizontalHeaderLabels([
+            "Page Name",
+            "Industry",
+            "Added Date",
+            "Last Seen",
+            "Total Ads Found",
+            "Action",
+        ])
+        self.watchlist_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        self.watchlist_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        self.watchlist_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+        self.watchlist_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
+        self.watchlist_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
+        self.watchlist_table.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeMode.ResizeToContents)
+        self.watchlist_table.verticalHeader().setVisible(False)
+        self.watchlist_table.setMinimumHeight(400)
+
+        layout.addWidget(self.watchlist_table, 1)
+        return page
+
     def _build_scaffold_page(self, name: str) -> QWidget:
         """Builds a placeholder scaffold page."""
         page = QWidget()
@@ -607,185 +842,6 @@ class AdLensPKWindow(QMainWindow):
         page_layout.addWidget(sublabel)
         return page
 
-    def _build_trend_tracker_page(self) -> QWidget:
-        """Page 4 - Trend Tracker: metric cards, demand signal, daily ingestion table."""
-        scroll_area = QScrollArea()
-        scroll_area.setWidgetResizable(True)
-        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        scroll_area.setStyleSheet("QScrollArea { border: none; background-color: #0f1117; }")
-
-        container = QWidget()
-        scroll_area.setWidget(container)
-
-        layout = QVBoxLayout(container)
-        layout.setContentsMargins(32, 32, 32, 32)
-        layout.setSpacing(24)
-        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-
-        header = QLabel("Trend Tracker")
-        hf = QFont()
-        hf.setPointSize(24)
-        hf.setBold(True)
-        header.setFont(hf)
-        header.setStyleSheet("color: #ffffff;")
-        layout.addWidget(header)
-
-        sub = QLabel("Longitudinal Ad Intelligence & Market Trends")
-        sub.setStyleSheet("color: #9ca3af; font-size: 14px;")
-        layout.addWidget(sub)
-
-        cards_row = QHBoxLayout()
-        cards_row.setSpacing(18)
-        card_db, self.trend_val_total_db = self._create_metric_card(
-            "Total Ads in Database", "-", "All-time ingested ad records"
-        )
-        card_pages, self.trend_val_unique_pages = self._create_metric_card(
-            "Unique Pages Seen", "-", "Distinct advertiser pages tracked"
-        )
-        card_ind, self.trend_val_most_active = self._create_metric_card(
-            "Most Active Industry", "-", "Highest volume ingested category"
-        )
-        cards_row.addWidget(card_db)
-        cards_row.addWidget(card_pages)
-        cards_row.addWidget(card_ind)
-        layout.addLayout(cards_row)
-
-        demand_lbl = QLabel("Pakistan Market Demand Signal")
-        demand_lbl.setStyleSheet("color: #ffffff; font-size: 15px; font-weight: 700;")
-        layout.addWidget(demand_lbl)
-
-        self.trend_demand_label = QLabel("Loading demand context...")
-        self.trend_demand_label.setWordWrap(True)
-        self.trend_demand_label.setStyleSheet(
-            "background-color: #1e2130; border: 1px solid #2d3148;"
-            " border-left: 3px solid #e63946; border-radius: 8px;"
-            " color: #9ca3af; font-size: 13px; padding: 14px 16px;"
-        )
-        layout.addWidget(self.trend_demand_label)
-
-        self.trend_warning_label = QLabel(
-            "Trend data builds over time \u2014 run the app daily to see patterns emerge."
-        )
-        self.trend_warning_label.setWordWrap(True)
-        self.trend_warning_label.setStyleSheet(
-            "background-color: #1a1d27; border: 1px solid #f59e0b;"
-            " border-radius: 8px; color: #f59e0b; font-size: 13px; padding: 12px 16px;"
-        )
-        self.trend_warning_label.setVisible(False)
-        layout.addWidget(self.trend_warning_label)
-
-        tbl_title = QLabel("Daily Ingestion History")
-        tbl_title.setStyleSheet("color: #ffffff; font-size: 15px; font-weight: 700;")
-        layout.addWidget(tbl_title)
-
-        self.trend_table = QTableWidget(0, 3)
-        self.trend_table.setHorizontalHeaderLabels(["Date", "Ads Pulled", "COD Adoption %"])
-        self.trend_table.horizontalHeader().setStretchLastSection(True)
-        self.trend_table.horizontalHeader().setSectionResizeMode(
-            0, QHeaderView.ResizeMode.Interactive
-        )
-        self.trend_table.horizontalHeader().setSectionResizeMode(
-            1, QHeaderView.ResizeMode.Interactive
-        )
-        self.trend_table.verticalHeader().setVisible(False)
-        self.trend_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        self.trend_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
-        self.trend_table.setAlternatingRowColors(True)
-        self.trend_table.setColumnWidth(0, 160)
-        self.trend_table.setColumnWidth(1, 130)
-        self.trend_table.setMinimumHeight(260)
-        layout.addWidget(self.trend_table)
-        layout.addStretch()
-
-        return scroll_area
-
-    def _refresh_trend_tracker(self) -> None:
-        if self._trend_worker is not None and self._trend_worker.isRunning():
-            return
-        industry = self.industry_combo.currentText()
-        if hasattr(self, "trend_demand_label"):
-            self.trend_demand_label.setText("Loading demand context...")
-        if hasattr(self, "trend_warning_label"):
-            self.trend_warning_label.setVisible(False)
-        self._trend_worker = TrendDataWorker(industry=industry)
-        self._trend_worker.data_ready.connect(self._on_trend_data_ready)
-        self._trend_worker.error_occurred.connect(self._on_trend_data_error)
-        self._trend_worker.start()
-
-    def _on_trend_data_ready(
-        self,
-        all_ads: List[Dict[str, Any]],
-        trend_rows: List[Dict[str, Any]],
-        demand_text: str,
-    ) -> None:
-        total_db = len(all_ads)
-        self.trend_val_total_db.setText(f"{total_db:,}")
-
-        if all_ads:
-            df = pd.DataFrame(all_ads)
-            unique_pages = int(df["page_name"].nunique()) if "page_name" in df.columns else 0
-            self.trend_val_unique_pages.setText(f"{unique_pages:,}")
-            if "industry" in df.columns and not df["industry"].dropna().empty:
-                most_active = str(df["industry"].value_counts().index[0]).title()
-            else:
-                most_active = "N/A"
-            self.trend_val_most_active.setText(most_active)
-        else:
-            self.trend_val_unique_pages.setText("0")
-            self.trend_val_most_active.setText("N/A")
-
-        self.trend_demand_label.setText(demand_text)
-        self.trend_demand_label.setStyleSheet(
-            "background-color: #1e2130; border: 1px solid #2d3148;"
-            " border-left: 3px solid #e63946; border-radius: 8px;"
-            " color: #9ca3af; font-size: 13px; padding: 14px 16px;"
-        )
-
-        self.trend_warning_label.setVisible(len(trend_rows) <= 1)
-
-        cod_by_date: Dict[str, float] = {}
-        if all_ads:
-            df_full = pd.DataFrame(all_ads)
-            if "pulled_at" in df_full.columns and "has_cod" in df_full.columns:
-                df_full["_date"] = (
-                    pd.to_datetime(df_full["pulled_at"], errors="coerce")
-                    .dt.date.astype(str)
-                )
-                cod_by_date = (
-                    df_full.groupby("_date")["has_cod"]
-                    .apply(lambda x: round(x.sum() / max(len(x), 1) * 100, 1))
-                    .to_dict()
-                )
-
-        self.trend_table.setRowCount(0)
-        for row_data in trend_rows:
-            date_str = str(row_data.get("date", ""))
-            ads_count = str(row_data.get("count", 0))
-            cod_pct = cod_by_date.get(date_str)
-            cod_str = f"{cod_pct:.1f}%" if cod_pct is not None else "N/A"
-            row_idx = self.trend_table.rowCount()
-            self.trend_table.insertRow(row_idx)
-            for col, value in enumerate([date_str, ads_count, cod_str]):
-                cell = QTableWidgetItem(value)
-                cell.setTextAlignment(
-                    Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft
-                )
-                self.trend_table.setItem(row_idx, col, cell)
-
-        if not trend_rows:
-            self.trend_table.insertRow(0)
-            placeholder = QTableWidgetItem("No data yet \u2014 generate a report first.")
-            placeholder.setForeground(QColor("#6b7280"))
-            self.trend_table.setItem(0, 0, placeholder)
-
-    def _on_trend_data_error(self, error_msg: str) -> None:
-        self.trend_demand_label.setText(f"Error loading trend data: {error_msg}")
-        self.trend_demand_label.setStyleSheet(
-            "background-color: #1e2130; border: 1px solid #e63946;"
-            " border-left: 3px solid #e63946; border-radius: 8px;"
-            " color: #e63946; font-size: 13px; padding: 14px 16px;"
-        )
-
     def _build_content_stack(self) -> QStackedWidget:
         stack = QStackedWidget()
         stack.setStyleSheet("background-color: #0f1117;")
@@ -793,8 +849,9 @@ class AdLensPKWindow(QMainWindow):
         # Page 0: Market Overview
         stack.addWidget(self._build_market_overview_page())
 
-        # Page 1: Offer Matrix (Scaffold)
-        stack.addWidget(self._build_scaffold_page("Offer Matrix"))
+        # Page 1: Offer Matrix
+        self.offer_matrix_page = self._build_offer_matrix_page()
+        stack.addWidget(self.offer_matrix_page)
 
         # Page 2: Hook Psychology
         stack.addWidget(self._build_hook_psychology_page())
@@ -802,11 +859,12 @@ class AdLensPKWindow(QMainWindow):
         # Page 3: Strategy Playbook
         stack.addWidget(self._build_strategy_playbook_page())
 
-        # Page 4: Trend Tracker
-        stack.addWidget(self._build_trend_tracker_page())
+        # Page 4: Trend Tracker (Scaffold)
+        stack.addWidget(self._build_scaffold_page("Trend Tracker"))
 
-        # Kick off initial data load
-        self._refresh_trend_tracker()
+        # Page 5: Watchlist
+        self.watchlist_page = self._build_watchlist_page()
+        stack.addWidget(self.watchlist_page)
 
         return stack
 
@@ -814,8 +872,8 @@ class AdLensPKWindow(QMainWindow):
         self.content_stack.setCurrentIndex(index)
         for i, btn in enumerate(self.nav_buttons):
             btn.setChecked(i == index)
-        if index == 4:
-            self._refresh_trend_tracker()
+        if index == 5:
+            self._refresh_watchlist_table()
 
     def _on_generate_clicked(self) -> None:
         """Handles 'Generate Report' button click by dispatching work to QThread."""
@@ -867,7 +925,28 @@ class AdLensPKWindow(QMainWindow):
         )
         self.market_overview_status.setStyleSheet("color: #10b981; font-size: 14px;")
 
-        # 2. Update Hook Psychology Page
+        # 2. Update Offer Matrix Page
+        self.val_cta.setText(offer_matrix.most_common_cta)
+        self.val_free_delivery.setText(f"{offer_matrix.free_shipping_prevalence_pct:.1f}%")
+        self.val_offer_cod.setText(f"{offer_matrix.cod_prevalence_pct:.1f}%")
+        self.val_price_ranges.setText(", ".join(offer_matrix.price_ranges_detected) if offer_matrix.price_ranges_detected else "None")
+
+        self.offer_table.setRowCount(len(offer_matrix.records))
+        for row, rec in enumerate(offer_matrix.records):
+            p_cell = QTableWidgetItem(rec.page_name)
+            pr_cell = QTableWidgetItem(rec.price_mentioned or "N/A")
+            c_cell = QTableWidgetItem("Yes" if rec.has_cash_on_delivery else "No")
+            cta_cell = QTableWidgetItem(rec.primary_cta)
+
+            for cell in (p_cell, pr_cell, c_cell, cta_cell):
+                cell.setFlags(cell.flags() & ~Qt.ItemFlag.ItemIsEditable)
+
+            self.offer_table.setItem(row, 0, p_cell)
+            self.offer_table.setItem(row, 1, pr_cell)
+            self.offer_table.setItem(row, 2, c_cell)
+            self.offer_table.setItem(row, 3, cta_cell)
+
+        # 3. Update Hook Psychology Page
         self.val_dom_hook.setText(str(hook_report.dominant_hook_type))
         self.hooks_table.setRowCount(0)
         for row_idx, item in enumerate(hook_report.items):
@@ -887,7 +966,7 @@ class AdLensPKWindow(QMainWindow):
             self.hooks_table.setItem(row_idx, 2, l_item)
             self.hooks_table.setItem(row_idx, 3, r_item)
 
-        # 3. Update Strategy Playbook Page
+        # 4. Update Strategy Playbook Page
         self.val_brief_niche.setText(brief.target_niche)
         self.val_brief_whitespace.setText(brief.market_whitespace)
         self.val_brief_angle.setText(brief.recommended_angle)
@@ -900,53 +979,105 @@ class AdLensPKWindow(QMainWindow):
 
         self.export_button.setEnabled(True)
 
-    def _on_export_strategy_clicked(self) -> None:
-        """Exports the current AI strategy brief to a text file using QFileDialog."""
-        if not self._brief:
+        # 5. Refresh Watchlist Stats
+        self._refresh_watchlist_table()
+
+    def _on_export_pdf_clicked(self) -> None:
+        if not (self._brief and self._offer_matrix and self._hook_report):
             return
 
         industry_name = self.industry_combo.currentText().lower().replace(" ", "_")
-        default_filename = f"adlens_strategy_{industry_name}.txt"
+        default_filename = f"adlens_report_{industry_name}.pdf"
 
         file_path, _ = QFileDialog.getSaveFileName(
             self,
-            "Export Strategy (.txt)",
+            "Export Full Report (PDF)",
             default_filename,
-            "Text Files (*.txt);;All Files (*)",
+            "PDF Files (*.pdf);;All Files (*)",
         )
 
         if not file_path:
             return
 
-        hooks_text = "\n".join(
-            f"  {idx}. {h}" for idx, h in enumerate(self._brief.suggested_hooks, start=1)
-        )
-        content = (
-            "======================================================================\n"
-            "AdLens PK — Tactical Campaign Strategy Brief\n"
-            f"Target Niche: {self._brief.target_niche}\n"
-            "======================================================================\n\n"
-            "1. TARGET NICHE\n"
-            f"   {self._brief.target_niche}\n\n"
-            "2. MARKET WHITESPACE\n"
-            f"   {self._brief.market_whitespace}\n\n"
-            "3. RECOMMENDED PSYCHOLOGICAL ANGLE\n"
-            f"   {self._brief.recommended_angle}\n\n"
-            "4. RECOMMENDED OFFER STRUCTURE\n"
-            f"   {self._brief.recommended_offer_structure}\n\n"
-            "5. SUGGESTED COPY HOOKS\n"
-            f"{hooks_text}\n\n"
-            "======================================================================\n"
-            "Generated by AdLens PK Engine\n"
-            "======================================================================\n"
-        )
-
         try:
-            with open(file_path, "w", encoding="utf-8") as f:
-                f.write(content)
+            export_report_pdf(
+                offer_matrix=self._offer_matrix,
+                hook_report=self._hook_report,
+                brief=self._brief,
+                output_path=file_path,
+            )
+            os.startfile(file_path)
         except Exception as exc:
-            self.market_overview_status.setText(f"Export failed: {exc}")
+            self.market_overview_status.setText(f"PDF export failed: {exc}")
             self.market_overview_status.setStyleSheet("color: #e63946; font-size: 14px;")
+
+    def _on_add_to_watchlist(self) -> None:
+        """Handles adding a page to the competitor watchlist."""
+        page_name = self.watchlist_input.text().strip()
+        if not page_name:
+            return
+
+        industry = self.watchlist_industry_combo.currentText()
+        try:
+            add_to_watchlist(page_name=page_name, industry=industry)
+            self.watchlist_input.clear()
+            self._refresh_watchlist_table()
+        except Exception as exc:
+            print(f"Error adding to watchlist: {exc}")
+
+    def _on_remove_from_watchlist(self, page_name: str) -> None:
+        """Handles removing a page from the competitor watchlist."""
+        try:
+            remove_from_watchlist(page_name)
+            self._refresh_watchlist_table()
+        except Exception as exc:
+            print(f"Error removing from watchlist: {exc}")
+
+    def _refresh_watchlist_table(self) -> None:
+        """Refreshes the watchlist table with all active entries from the database."""
+        try:
+            entries = get_watchlist(active_only=True)
+            self.watchlist_active_label.setText(f"Active monitoring: {len(entries)} pages")
+            self.watchlist_table.setRowCount(len(entries))
+
+            for row_idx, entry in enumerate(entries):
+                p_name = QTableWidgetItem(str(entry.get("page_name", "")))
+                ind = QTableWidgetItem(str(entry.get("industry", "")))
+                added = QTableWidgetItem(str(entry.get("added_at") or "-"))
+                seen = QTableWidgetItem(str(entry.get("last_seen_at") or "Never"))
+                ads_count = QTableWidgetItem(str(entry.get("total_ads_found", 0)))
+
+                for it in (p_name, ind, added, seen, ads_count):
+                    it.setFlags(it.flags() & ~Qt.ItemFlag.ItemIsEditable)
+
+                self.watchlist_table.setItem(row_idx, 0, p_name)
+                self.watchlist_table.setItem(row_idx, 1, ind)
+                self.watchlist_table.setItem(row_idx, 2, added)
+                self.watchlist_table.setItem(row_idx, 3, seen)
+                self.watchlist_table.setItem(row_idx, 4, ads_count)
+
+                remove_btn = QPushButton("Remove")
+                remove_btn.setStyleSheet("""
+                    QPushButton {
+                        background-color: #dc2626;
+                        color: #ffffff;
+                        border: none;
+                        border-radius: 6px;
+                        padding: 6px 12px;
+                        font-size: 12px;
+                        font-weight: 600;
+                    }
+                    QPushButton:hover {
+                        background-color: #b91c1c;
+                    }
+                """)
+                remove_btn.clicked.connect(
+                    lambda checked, name=entry["page_name"]: self._on_remove_from_watchlist(name)
+                )
+                self.watchlist_table.setCellWidget(row_idx, 5, remove_btn)
+
+        except Exception as exc:
+            print(f"Error refreshing watchlist table: {exc}")
 
     def _on_report_error(self, error_msg: str) -> None:
         """Handles pipeline worker failure."""

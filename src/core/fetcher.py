@@ -159,16 +159,20 @@ def _fetch_live(industry: str) -> List[RawAdRecord]:
 
 def fetch_ads(industry: Optional[str] = "general", use_mock: Optional[bool] = None) -> List[RawAdRecord]:
     """Main entry point to fetch ads, routing to live API or local mock dataset."""
+    from src.db.watchlist import check_and_update_watchlist
+
     should_mock = settings.USE_MOCK_DATA if use_mock is None else use_mock
     target_industry = industry or "general"
 
     if should_mock:
-        return _load_mock(industry)
+        records = _load_mock(industry)
+    else:
+        records = _fetch_live(target_industry)
+        if not records:
+            logger.warning("Live API returned 0 records — falling back to mock.")
+            records = _load_mock(industry)
 
-    records = _fetch_live(target_industry)
-
-    if not records:
-        logger.warning("Live API returned 0 records — falling back to mock.")
-        return _load_mock(industry)
+    if records:
+        check_and_update_watchlist(records)
 
     return records

@@ -5,6 +5,7 @@ from sqlalchemy import select, func, cast, Date
 
 from src.core.schemas import RawAdRecord
 from src.db.models import engine, SessionLocal, Base, AdRecord
+from src.db.watchlist import WatchlistEntry
 from src.core.extractor import extract_offer_details
 from src.core.classifier import detect_language, extract_raw_hook, classify_single_hook
 

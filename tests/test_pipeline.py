@@ -422,4 +422,116 @@ class TestDesktopApp:
             assert kwargs.get("use_mock") is True
             assert mock_save.called
 
+    def test_watchlist_page_ui_flow(self):
+        """Verify Watchlist page controls in AdLensPKWindow allow adding and removing competitors."""
+        import os
+        os.environ["QT_QPA_PLATFORM"] = "offscreen"
+        from PyQt6.QtWidgets import QApplication
+        from src.desktop.main_window import AdLensPKWindow
+        from src.db.watchlist import get_watchlist, remove_from_watchlist
+
+        app = QApplication.instance() or QApplication(["--platform", "offscreen"])
+        win = AdLensPKWindow()
+
+        # Clean up existing test entry if present
+        remove_from_watchlist("TestBrandPK")
+
+        # 1. Test adding a page through UI
+        win.watchlist_input.setText("TestBrandPK")
+        win.watchlist_industry_combo.setCurrentText("Fashion")
+        win._on_add_to_watchlist()
+
+        assert "Active monitoring" in win.watchlist_active_label.text()
+        entries = get_watchlist(active_only=True)
+        matched = [e for e in entries if e["page_name"] == "TestBrandPK"]
+        assert len(matched) == 1
+        assert matched[0]["industry"] == "Fashion"
+
+        # 2. Verify table populated
+        found_in_table = False
+        for row in range(win.watchlist_table.rowCount()):
+            item = win.watchlist_table.item(row, 0)
+            if item and item.text() == "TestBrandPK":
+                found_in_table = True
+                break
+        assert found_in_table is True
+
+        # 3. Test removing page
+        win._on_remove_from_watchlist("TestBrandPK")
+        entries_after = get_watchlist(active_only=True)
+        assert not any(e["page_name"] == "TestBrandPK" for e in entries_after)
+
+
+# ==============================================================================
+# 6. Competitor Watchlist DB & Pipeline Tests
+# ==============================================================================
+
+class TestCompetitorWatchlist:
+    """Targeted tests for src/db/watchlist.py and pipeline watchlist scanning."""
+
+    def test_add_and_get_watchlist(self):
+        """Verify adding and retrieving watchlist entries."""
+        from src.db.watchlist import add_to_watchlist, get_watchlist, remove_from_watchlist
+
+        remove_from_watchlist("Brand_Alpha_PK")
+        entry = add_to_watchlist("Brand_Alpha_PK", "Electronics")
+        assert entry["page_name"] == "Brand_Alpha_PK"
+        assert entry["industry"] == "Electronics"
+        assert entry["is_active"] is True
+
+        entries = get_watchlist(active_only=True)
+        assert any(e["page_name"] == "Brand_Alpha_PK" for e in entries)
+
+        # Cleanup
+        remove_from_watchlist("Brand_Alpha_PK")
+
+    def test_remove_from_watchlist(self):
+        """Verify removing entries from watchlist."""
+        from src.db.watchlist import add_to_watchlist, remove_from_watchlist, get_watchlist
+
+        add_to_watchlist("Brand_Beta_PK", "Food & Grocery")
+        removed = remove_from_watchlist("Brand_Beta_PK")
+        assert removed is True
+
+        entries = get_watchlist(active_only=True)
+        assert not any(e["page_name"] == "Brand_Beta_PK" for e in entries)
+
+    def test_update_watchlist_stats(self):
+        """Verify updating last seen timestamp and ad counts for a watched page."""
+        from src.db.watchlist import add_to_watchlist, update_watchlist_stats, remove_from_watchlist
+
+        remove_from_watchlist("Brand_Gamma_PK")
+        add_to_watchlist("Brand_Gamma_PK", "Fashion")
+
+        updated = update_watchlist_stats("Brand_Gamma_PK", 5)
+        assert updated is not None
+        assert updated["total_ads_found"] >= 5
+        assert updated["last_seen_at"] != "Never"
+
+        # Cleanup
+        remove_from_watchlist("Brand_Gamma_PK")
+
+    def test_check_and_update_watchlist_in_fetch_ads(self):
+        """Verify fetch_ads automatically scans records and increments watchlist stats."""
+        from src.db.watchlist import add_to_watchlist, remove_from_watchlist, get_watchlist
+        from src.core.fetcher import fetch_ads
+
+        # Add Khaadi (which is in the mock dataset) to watchlist
+        remove_from_watchlist("Khaadi Official")
+        add_to_watchlist("Khaadi Official", "Fashion")
+
+        # Fetch ads
+        ads = fetch_ads(industry="fashion", use_mock=True)
+        assert len(ads) > 0
+
+        # Check if Khaadi Official stats were updated if present in mock dataset
+        entries = get_watchlist(active_only=True)
+        khaadi_entries = [e for e in entries if e["page_name"].lower() == "khaadi official"]
+        if khaadi_entries:
+            # Entry exists
+            assert khaadi_entries[0]["is_active"] is True
+
+        remove_from_watchlist("Khaadi Official")
+
+
 

@@ -35,3 +35,8 @@ kaggle>=1.6.0,<2.0.0
 # Web Scraping
 playwright>=1.40.0 # Provides both sync and async_api
 
+
+pyqtgraph>=0.13.0
+
+# PDF Report Export
+reportlab>=4.0.0
