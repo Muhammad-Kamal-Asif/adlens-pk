@@ -10,12 +10,17 @@ from src.db.repository import save_ads, init_db, get_all_ads
 init_db()
 
 SEARCH_MAP = {
-    "fashion": ["sale Pakistan", "dress collection", "fashion pk", "lawn suits"],
-    "electronics": ["mobile phone pk", "Samsung Pakistan", "laptop sale"],  
+    "fashion": ["sale Pakistan", "dress collection", "fashion pk", "lawn suits",
+                "Khaadi", "Gul Ahmed", "J. lawn", "Sapphire pk", "Bonanza Satrangi"],
+    "electronics": ["mobile phone pk", "Samsung Pakistan", "laptop sale",
+                    "Haier Pakistan", "QMobile", "PEL appliances"],
     "health": ["skin care pk", "weight loss Pakistan", "health supplement"],
-    "food": ["food delivery pk", "biryani", "restaurant Karachi"],
-    "real_estate": ["plot for sale Lahore", "DHA property", "bahria town"],
-    "education": ["online course Pakistan", "freelancing", "digital marketing course"],
+    "food": ["food delivery pk", "biryani", "restaurant Karachi",
+             "Foodpanda Pakistan", "Cheetay", "Yayvo food"],
+    "real_estate": ["plot for sale Lahore", "DHA property", "bahria town",
+                    "Zameen.com", "Graana", "OLX Pakistan property"],
+    "education": ["online course Pakistan", "freelancing", "digital marketing course",
+                  "Alison Pakistan", "Digiskills", "NAVTTC"],
     "home": ["furniture sale pk", "home decor Pakistan"],
     "general": ["COD Pakistan", "free delivery pk", "sale offer"]
 }

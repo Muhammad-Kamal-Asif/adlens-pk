@@ -89,6 +89,26 @@ async def _random_mouse_moves(page, count: int = 3) -> None:
         await page.mouse.move(x, y)
         await page.wait_for_timeout(random.randint(80, 200))
 
+def clean_ad_copy(text: str) -> str:
+    import re
+    # Remove Library ID lines
+    text = re.sub(r'Library ID[:\s]+\d+', '', text)
+    # Remove date range patterns
+    text = re.sub(r'\d{1,2}\s+\w+\s+\d{4}\s*[-–]\s*\d{1,2}\s+\w+\s+\d{4}', '', text)
+    text = re.sub(r'\d{1,2}\s+\w+\s+\d{4}', '', text)
+    # Remove platform labels
+    for noise in ['Inactive', 'Active', 'Platforms', 'Sponsored', 'All EU countries',
+                  'See ad details', 'See Summary', 'About this ad', 'Run on']:
+        text = text.replace(noise, '')
+    # Remove zero-width characters
+    text = text.replace('\u200b', '').replace('\u200c', '').replace('\u200d', '')
+    # Remove lines shorter than 15 chars (usually UI labels)
+    lines = [l.strip() for l in text.split('\n') if len(l.strip()) >= 15]
+    text = '\n'.join(lines)
+    # Collapse multiple blank lines
+    text = re.sub(r'\n{3,}', '\n\n', text).strip()
+    return text
+
 
 async def scrape_facebook_ads(industry: str, max_ads: int = 100) -> List[RawAdRecord]:
     """Scrapes the public Facebook Ad Library for a given industry."""
@@ -188,22 +208,27 @@ async def scrape_facebook_ads(industry: str, max_ads: int = 100) -> List[RawAdRe
                 if processed >= max_ads:
                     break
                 try:
-                    text = await element.inner_text()
-                    text = text.strip()
-                    if len(text) < 80 or len(text) > 4000:
+                    raw_text = await element.inner_text()
+                    raw_text = raw_text.strip()
+                    if len(raw_text) < 80 or len(raw_text) > 4000:
                         continue
                     
-                    if any(text.startswith(noise) or noise in text for noise in noise_list):
+                    if any(raw_text.startswith(noise) or noise in raw_text for noise in noise_list):
                         continue
+
+                    text = clean_ad_copy(raw_text)
 
                     fingerprint = text[:120].replace(' ','').replace('\n','').lower()
                     if fingerprint in seen_fingerprints:
                         skipped_duplicates += 1
                         continue
-                    seen_fingerprints.add(fingerprint)
 
                     await element.scroll_into_view_if_needed()
                     await page.wait_for_timeout(300)
+
+                    # Add fingerprint only AFTER scroll succeeds — so a
+                    # container-div failure doesn't poison its children.
+                    seen_fingerprints.add(fingerprint)
 
                     await page.evaluate("""el => {
                         el.style.outline = '2px solid #e63946';
@@ -228,20 +253,79 @@ async def scrape_facebook_ads(industry: str, max_ads: int = 100) -> List[RawAdRe
                         pass
 
                     page_name = 'Unknown'
+                    _PAGE_NOISE = [
+                        'sponsored', 'active', 'inactive', 'ad library',
+                        'see ad details', 'see summary', 'about this ad',
+                        'all platforms', 'facebook', 'instagram', 'messenger',
+                        'audience network', 'started running', 'run on',
+                        'library id', 'platforms', 'impressions',
+                        'eu transparency', 'multiple versions',
+                        'previous items', 'next items', 'see all',
+                        'learn more', 'shop now', 'sign up', 'send message',
+                        'play.google.com', 'disclaimer',
+                        'drop-down', 'drop down', 'open drop', 'close drop',
+                        'toggle', 'expand', 'collapse', 'menu', 'carousel',
+                    ]
+
+                    def _is_noise(txt: str) -> bool:
+                        """Return True if txt matches any noise substring."""
+                        low = txt.lower()
+                        return any(n in low for n in _PAGE_NOISE)
+
+                    # --- Priority 1: anchor with facebook.com href ---
                     try:
-                        link_el = await element.query_selector('a[href*="facebook.com"]')
-                        if link_el:
+                        link_els = await element.query_selector_all('a[href*="facebook.com"]')
+                        for link_el in link_els:
                             pn = (await link_el.inner_text()).strip()
-                            if pn and len(pn) > 1:
+                            if (
+                                pn
+                                and 3 <= len(pn) <= 60
+                                and '\n' not in pn
+                                and not pn.isdigit()
+                                and not _is_noise(pn)
+                            ):
                                 page_name = pn
+                                break
                     except Exception:
                         pass
+
+                    # --- Priority 2: element with aria-label ---
                     if page_name == 'Unknown':
-                        lines = [l.strip() for l in text.split('\n') if l.strip()]
-                        page_name = lines[0] if lines else 'Unknown'
+                        try:
+                            aria_el = await element.query_selector('[aria-label]')
+                            if aria_el:
+                                aria_val = await aria_el.get_attribute('aria-label')
+                                if (
+                                    aria_val
+                                    and 3 <= len(aria_val.strip()) <= 60
+                                    and not _is_noise(aria_val.strip())
+                                ):
+                                    page_name = aria_val.strip()
+                        except Exception:
+                            pass
+
+                    # --- Priority 3: short div/span text before ad body ---
+                    if page_name == 'Unknown':
+                        try:
+                            header_els = await element.query_selector_all('div, span')
+                            for hel in header_els:
+                                htxt = (await hel.inner_text()).strip()
+                                if (
+                                    htxt
+                                    and 3 <= len(htxt) <= 60
+                                    and '\n' not in htxt
+                                    and not htxt.isdigit()
+                                    and not _is_noise(htxt)
+                                    and not re.match(r'^\d{1,2}\s+\w+\s+\d{4}', htxt)
+                                ):
+                                    page_name = htxt
+                                    break
+                        except Exception:
+                            pass
+
 
                     days_active = 1
-                    date_match = re.search(r'(\d{1,2}\s+\w+\s+\d{4})', text)
+                    date_match = re.search(r'(\d{1,2}\s+\w+\s+\d{4})', raw_text)
                     if date_match:
                         try:
                             start_date = datetime.strptime(date_match.group(1), '%d %B %Y')
@@ -308,4 +392,22 @@ def scrape_ads_sync(industry: str, max_ads: int = 100) -> List[RawAdRecord]:
     """Synchronous wrapper that runs the async scraper via asyncio.run()."""
     from src.core.relevance import filter_by_relevance
     results = asyncio.run(scrape_facebook_ads(industry, max_ads))
-    return filter_by_relevance(results, industry)
+    results = filter_by_relevance(results, industry)
+
+    # ML relevance filter + feedback logging
+    try:
+        from src.ml.relevance_classifier import RelevanceClassifier
+        rc = RelevanceClassifier()
+        kept, filtered_out = rc.filter_relevant(results, industry)
+        for ad in kept:
+            rc.log_feedback(ad.ad_id, industry, was_relevant=True, ad_copy=ad.ad_copy)
+        for ad in filtered_out:
+            rc.log_feedback(ad.ad_id, industry, was_relevant=False, ad_copy=ad.ad_copy)
+        logger.info(
+            "ML filter: %d kept, %d filtered out for industry '%s'",
+            len(kept), len(filtered_out), industry,
+        )
+        return kept
+    except Exception as e:
+        logger.warning("ML relevance filter unavailable, returning keyword-filtered results: %s", e)
+        return results

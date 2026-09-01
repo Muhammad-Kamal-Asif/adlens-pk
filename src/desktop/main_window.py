@@ -31,6 +31,7 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+import pyqtgraph as pg
 
 from src.core.schemas import (
     RawAdRecord,
@@ -97,10 +98,11 @@ class AdFetchWorker(QThread):
 
 class CollectionWorker(QThread):
     """Background worker that runs ad collection for multiple industries sequentially."""
-    progress = pyqtSignal(int, str, int)  # industry_index, industry_name, ads_collected
+    progress = pyqtSignal(int, str, int, int)  # industry_index, industry_name, ads_found, ads_saved
     status_update = pyqtSignal(str)
     collection_finished = pyqtSignal()
     error_occurred = pyqtSignal(str)
+    log_message = pyqtSignal(str)
 
     def __init__(self, industries: List[str]) -> None:
         super().__init__()
@@ -108,26 +110,33 @@ class CollectionWorker(QThread):
         self._is_cancelled = False
 
     def run(self) -> None:
+        import time
+        from datetime import datetime
         try:
             from src.core.scraper import scrape_ads_sync
             from src.db.repository import save_ads
 
             for idx, industry in enumerate(self.industries):
                 if self._is_cancelled:
+                    self.log_message.emit(f"[{datetime.now().strftime('%H:%M:%S')}] Collection cancelled by user.")
                     break
 
                 self.status_update.emit(f"Collecting {industry}...")
+                self.log_message.emit(f"[{datetime.now().strftime('%H:%M:%S')}] {industry.upper()}: Starting collection...")
                 try:
                     ads = scrape_ads_sync(industry, max_ads=50)
                     count = save_ads(ads)
-                    self.progress.emit(idx, industry, count)
+                    self.progress.emit(idx, industry, len(ads), count)
+                    self.log_message.emit(f"[{datetime.now().strftime('%H:%M:%S')}] {industry.upper()}: Found {len(ads)} ads, saved {count} new")
                 except Exception as exc:
                     self.error_occurred.emit(f"{industry}: {exc}")
-                    self.progress.emit(idx, industry, 0)
+                    self.progress.emit(idx, industry, 0, 0)
+                    self.log_message.emit(f"[{datetime.now().strftime('%H:%M:%S')}] {industry.upper()}: Error - {exc}")
 
             self.status_update.emit("Collection complete")
         except Exception as exc:
             self.error_occurred.emit(str(exc))
+            self.log_message.emit(f"[{datetime.now().strftime('%H:%M:%S')}] SYSTEM ERROR: {exc}")
         finally:
             self.collection_finished.emit()
 
@@ -146,7 +155,7 @@ class AdLensPKWindow(QMainWindow):
         self._offer_matrix: Optional[OfferMatrixSummary] = None
         self._hook_report: Optional[HookAnalysisReport] = None
         self._brief: Optional[TacticalCreativeBrief] = None
-        
+
         # Ensure database tables exist
         init_db()
 
@@ -475,6 +484,7 @@ class AdLensPKWindow(QMainWindow):
         self.nav_buttons: list[QPushButton] = []
         self.page_names = [
             "Home",
+            "Live Collection",
             "Winning Formula",
             "Market Overview",
             "Offer Matrix",
@@ -595,6 +605,46 @@ class AdLensPKWindow(QMainWindow):
         insight_layout.addWidget(self.home_insight_text)
         layout.addWidget(self.home_insight_card)
 
+        glance_title = QLabel("Market at a glance")
+        glance_title.setStyleSheet("color: #ffffff; font-size: 16px; font-weight: 600; margin-top: 8px;")
+        layout.addWidget(glance_title)
+
+        glance_cards_layout = QHBoxLayout()
+        glance_cards_layout.setSpacing(18)
+
+        card_active_adv, self.home_val_active_adv = self._create_metric_card("Most Active Advertiser", "-", "Brand with most ads")
+        card_adv_ind, self.home_val_adv_ind = self._create_metric_card("Most Advertised Industry", "-", "Industry with most ads")
+        card_avg_lifespan, self.home_val_avg_lifespan = self._create_metric_card("Average Ad Lifespan", "-", "Overall average days")
+
+        glance_cards_layout.addWidget(card_active_adv)
+        glance_cards_layout.addWidget(card_adv_ind)
+        glance_cards_layout.addWidget(card_avg_lifespan)
+
+        layout.addLayout(glance_cards_layout)
+
+        charts_layout = QHBoxLayout()
+        charts_layout.setSpacing(18)
+
+        self.home_industry_chart = pg.PlotWidget(title="Ads by Industry")
+        self.home_industry_chart.setBackground("#1e2130")
+        self.home_industry_chart.getAxis('bottom').setPen('#9ca3af')
+        self.home_industry_chart.getAxis('left').setPen('#9ca3af')
+        self.home_industry_chart.getAxis('bottom').setTextPen('#ffffff')
+        self.home_industry_chart.getAxis('left').setTextPen('#ffffff')
+        self.home_industry_chart.setMinimumHeight(250)
+        charts_layout.addWidget(self.home_industry_chart)
+
+        self.home_cod_chart = pg.PlotWidget(title="COD Adoption Rate (%)")
+        self.home_cod_chart.setBackground("#1e2130")
+        self.home_cod_chart.getAxis('bottom').setPen('#9ca3af')
+        self.home_cod_chart.getAxis('left').setPen('#9ca3af')
+        self.home_cod_chart.getAxis('bottom').setTextPen('#ffffff')
+        self.home_cod_chart.getAxis('left').setTextPen('#ffffff')
+        self.home_cod_chart.setMinimumHeight(250)
+        charts_layout.addWidget(self.home_cod_chart)
+
+        layout.addLayout(charts_layout)
+
         table_title = QLabel("Top 10 Longest-Running Ads")
         table_title.setStyleSheet("color: #ffffff; font-size: 16px; font-weight: 600; margin-top: 8px;")
         layout.addWidget(table_title)
@@ -618,76 +668,194 @@ class AdLensPKWindow(QMainWindow):
         self.home_formula_list.setMinimumHeight(160)
         layout.addWidget(self.home_formula_list)
 
-        # Data Collection Section
-        coll_divider = QWidget()
-        coll_divider.setFixedHeight(1)
-        coll_divider.setStyleSheet("background-color: #2d3148;")
-        layout.addWidget(coll_divider)
+        self.home_bottom_updated = QLabel("Database last updated: — | 0 ads tracked")
+        self.home_bottom_updated.setStyleSheet("color: #9ca3af; font-size: 12px; margin-top: 12px;")
+        self.home_bottom_updated.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self.home_bottom_updated)
 
-        coll_title = QLabel("Data Collection")
-        coll_title_font = QFont()
-        coll_title_font.setPointSize(16)
-        coll_title_font.setBold(True)
-        coll_title.setFont(coll_title_font)
-        coll_title.setStyleSheet("color: #ffffff; margin-top: 8px;")
-        layout.addWidget(coll_title)
+        layout.addStretch()
+        return page
 
-        coll_sub = QLabel("Run live ad scraping across all industries. Results are saved to the database.")
-        coll_sub.setStyleSheet("color: #9ca3af; font-size: 13px;")
-        layout.addWidget(coll_sub)
+    def _build_collection_page(self) -> QWidget:
+        from PyQt6.QtWidgets import QTextEdit
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        layout.setContentsMargins(32, 32, 32, 32)
+        layout.setSpacing(24)
+        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
-        coll_row = QHBoxLayout()
-        coll_row.setSpacing(16)
+        # Header
+        header_label = QLabel("Live Data Collection")
+        header_font = QFont()
+        header_font.setPointSize(24)
+        header_font.setBold(True)
+        header_label.setFont(header_font)
+        header_label.setStyleSheet("color: #ffffff;")
+        layout.addWidget(header_label)
 
-        self.home_collect_button = QPushButton("Run Collection Now")
-        self.home_collect_button.setStyleSheet("""
+        sub_label = QLabel("Watch AdLens PK scrape real Pakistani ads in real-time")
+        sub_label.setStyleSheet("color: #9ca3af; font-size: 14px;")
+        layout.addWidget(sub_label)
+
+        # Status Banner
+        banner_frame = QFrame()
+        banner_frame.setStyleSheet("""
+            QFrame {
+                background-color: #1e2130;
+                border: 1px solid #2d3148;
+                border-radius: 8px;
+                padding: 16px;
+            }
+        """)
+        banner_layout = QHBoxLayout(banner_frame)
+        banner_layout.setSpacing(32)
+
+        self.coll_last_run_lbl = QLabel("Last Run: Never")
+        self.coll_last_run_lbl.setStyleSheet("color: #ffffff; font-size: 14px; border: none;")
+        self.coll_collected_lbl = QLabel("Ads Collected Last Run: 0")
+        self.coll_collected_lbl.setStyleSheet("color: #ffffff; font-size: 14px; border: none;")
+        self.coll_total_db_lbl = QLabel("Current DB Total: 0")
+        self.coll_total_db_lbl.setStyleSheet("color: #ffffff; font-size: 14px; font-weight: 600; border: none;")
+
+        banner_layout.addWidget(self.coll_last_run_lbl)
+        banner_layout.addWidget(self.coll_collected_lbl)
+        banner_layout.addWidget(self.coll_total_db_lbl)
+        banner_layout.addStretch()
+        layout.addWidget(banner_frame)
+
+        # Industry Selector Grid
+        ind_title = QLabel("Select Industries to Collect")
+        ind_title.setStyleSheet("color: #ffffff; font-size: 16px; font-weight: 600; margin-top: 16px;")
+        layout.addWidget(ind_title)
+
+        grid_layout = QHBoxLayout()
+        grid_layout.setSpacing(12)
+        self.industry_toggles = []
+
+        # We take first 8 industries for the grid
+        industries = self.industry_options[:8] if hasattr(self, 'industry_options') else []
+        for ind in industries:
+            btn = QPushButton(ind)
+            btn.setCheckable(True)
+            btn.setChecked(True) # Default all selected
+            btn.setStyleSheet("""
+                QPushButton {
+                    background-color: #1e2130;
+                    color: #9ca3af;
+                    border: 1px solid #2d3148;
+                    border-radius: 6px;
+                    padding: 12px;
+                    font-weight: 600;
+                }
+                QPushButton:checked {
+                    background-color: #3b1418;
+                    color: #ffffff;
+                    border: 1px solid #e63946;
+                    box-shadow: 0 0 8px #e63946;
+                }
+            """)
+            self.industry_toggles.append(btn)
+            grid_layout.addWidget(btn)
+
+        layout.addLayout(grid_layout)
+
+        # Run controls row
+        controls_layout = QHBoxLayout()
+        controls_layout.setSpacing(16)
+
+        self.start_coll_btn = QPushButton("Start Collection")
+        self.start_coll_btn.setStyleSheet("""
             QPushButton {
                 background-color: #e63946;
                 color: #ffffff;
                 border: none;
                 border-radius: 8px;
-                padding: 12px 24px;
+                padding: 14px 28px;
                 font-weight: 700;
-                font-size: 14px;
+                font-size: 15px;
             }
-            QPushButton:hover {
-                background-color: #d62828;
+            QPushButton:hover { background-color: #d62828; }
+            QPushButton:disabled { background-color: #4b5563; color: #9ca3af; }
+        """)
+        self.start_coll_btn.clicked.connect(self._on_start_collection)
+        controls_layout.addWidget(self.start_coll_btn)
+
+        self.stop_coll_btn = QPushButton("Stop")
+        self.stop_coll_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #1e2130;
+                color: #ffffff;
+                border: 1px solid #2d3148;
+                border-radius: 8px;
+                padding: 14px 28px;
+                font-weight: 600;
+                font-size: 15px;
             }
-            QPushButton:disabled {
-                background-color: #4b5563;
-                color: #9ca3af;
+            QPushButton:hover { background-color: #2d3148; }
+            QPushButton:disabled { background-color: #1a1d27; color: #4b5563; }
+        """)
+        self.stop_coll_btn.setEnabled(False)
+        self.stop_coll_btn.clicked.connect(self._on_stop_collection)
+        controls_layout.addWidget(self.stop_coll_btn)
+
+        est_time_lbl = QLabel("Est. 15-20 minutes for all industries")
+        est_time_lbl.setStyleSheet("color: #9ca3af; font-size: 13px;")
+        controls_layout.addWidget(est_time_lbl)
+        controls_layout.addStretch()
+
+        layout.addLayout(controls_layout)
+
+        # Real-time log
+        log_title = QLabel("Live Collection Log")
+        log_title.setStyleSheet("color: #ffffff; font-size: 16px; font-weight: 600; margin-top: 16px;")
+        layout.addWidget(log_title)
+
+        self.coll_log_edit = QTextEdit()
+        self.coll_log_edit.setReadOnly(True)
+        self.coll_log_edit.setStyleSheet("""
+            QTextEdit {
+                background-color: #0c0d12;
+                color: #a9b1d6;
+                font-family: 'Consolas', 'Courier New', monospace;
+                font-size: 13px;
+                border: 1px solid #2d3148;
+                border-radius: 6px;
+                padding: 12px;
             }
         """)
-        self.home_collect_button.clicked.connect(self._on_run_collection)
-        coll_row.addWidget(self.home_collect_button)
+        layout.addWidget(self.coll_log_edit, 1)
 
-        self.home_collect_status = QLabel("Status: Idle")
-        self.home_collect_status.setStyleSheet("color: #9ca3af; font-size: 13px;")
-        coll_row.addWidget(self.home_collect_status, 1)
-
-        layout.addLayout(coll_row)
-
-        self.home_collect_progress = QProgressBar()
-        self.home_collect_progress.setMinimum(0)
-        self.home_collect_progress.setMaximum(len(self.industry_options))
-        self.home_collect_progress.setValue(0)
-        self.home_collect_progress.setStyleSheet("""
+        # Progress section
+        self.coll_progress_bar = QProgressBar()
+        self.coll_progress_bar.setMinimum(0)
+        self.coll_progress_bar.setMaximum(100)
+        self.coll_progress_bar.setValue(0)
+        self.coll_progress_bar.setStyleSheet("""
             QProgressBar {
                 background-color: #1e2130;
                 border: 1px solid #2d3148;
                 border-radius: 6px;
                 text-align: center;
                 color: #ffffff;
-                height: 24px;
+                height: 20px;
             }
             QProgressBar::chunk {
                 background-color: #e63946;
                 border-radius: 5px;
             }
         """)
-        layout.addWidget(self.home_collect_progress)
+        layout.addWidget(self.coll_progress_bar)
 
-        layout.addStretch()
+        self.coll_status_table = QTableWidget(0, 4)
+        self.coll_status_table.setHorizontalHeaderLabels(["Industry", "Status", "Ads Found", "Saved New"])
+        self.coll_status_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        self.coll_status_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        self.coll_status_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+        self.coll_status_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
+        self.coll_status_table.verticalHeader().setVisible(False)
+        self.coll_status_table.setMinimumHeight(200)
+        layout.addWidget(self.coll_status_table)
+
         return page
 
     def _build_market_overview_page(self) -> QWidget:
@@ -946,7 +1114,7 @@ class AdLensPKWindow(QMainWindow):
         # Header row with Export Buttons
         header_row = QHBoxLayout()
         header_layout = QVBoxLayout()
-        
+
         header_label = QLabel("Strategy Playbook")
         header_font = QFont()
         header_font.setPointSize(24)
@@ -1439,11 +1607,15 @@ class AdLensPKWindow(QMainWindow):
         self.home_page = self._build_home_page()
         stack.addWidget(self.home_page)
 
-        # Page 1: Winning Formula
+        # Page 1: Live Collection
+        self.collection_page = self._build_collection_page()
+        stack.addWidget(self.collection_page)
+
+        # Page 2: Winning Formula
         self.formula_page = WinningFormulaPage()
         stack.addWidget(self.formula_page)
 
-        # Page 2: Market Overview
+        # Page 3: Market Overview
         stack.addWidget(self._build_market_overview_page())
 
         # Page 3: Offer Matrix
@@ -1500,12 +1672,14 @@ class AdLensPKWindow(QMainWindow):
             btn.setChecked(i == index)
         if index == 0:
             self._refresh_home()
-        elif index == 6:
+        elif index == 1:
+            self._refresh_collection_stats()
+        elif index == 7:
             self._refresh_new_entrants_table()
             self._refresh_season_breakdown()
-        elif index == 7:
-            self._refresh_watchlist_table()
         elif index == 8:
+            self._refresh_watchlist_table()
+        elif index == 9:
             self._refresh_history_table()
 
     def _refresh_home(self) -> None:
@@ -1564,6 +1738,8 @@ class AdLensPKWindow(QMainWindow):
 
             most_recent = max(pulled_dates) if pulled_dates else "—"
             self.home_subtitle.setText(f"Last updated: {most_recent[:16]}")
+            if hasattr(self, 'home_bottom_updated'):
+                self.home_bottom_updated.setText(f"Database last updated: {most_recent[:16]} | {total} ads tracked")
 
             self.home_val_industries.setText(str(len(industries)))
 
@@ -1573,26 +1749,86 @@ class AdLensPKWindow(QMainWindow):
             cod_pct = round(cod_count / total * 100, 1)
             self.home_val_cod.setText(f"{cod_pct}%")
 
-            best_industry = None
-            best_ratio = 0
-            for ind in industries:
-                cod_days = industry_cod_days.get(ind, [])
-                noncod_days = industry_noncod_days.get(ind, [])
-                if cod_days and noncod_days:
-                    avg_cod = sum(cod_days) / len(cod_days)
-                    avg_noncod = sum(noncod_days) / len(noncod_days)
-                    if avg_noncod > 0:
-                        ratio = avg_cod / avg_noncod
-                        if ratio > best_ratio:
-                            best_ratio = ratio
-                            best_industry = ind
+            page_names = [ad.get("page_name", "Unknown") for ad in all_ads]
+            top_page = Counter(page_names).most_common(1)[0][0] if page_names else "-"
+            self.home_val_active_adv.setText(top_page)
 
-            if best_industry and best_ratio > 1.0:
-                self.home_insight_text.setText(
-                    f"In {best_industry}, COD ads run {best_ratio:.1f}x longer than non-COD ads"
-                )
+            ind_names = [str(ad.get("industry") or "General") for ad in all_ads]
+            top_ind = Counter(ind_names).most_common(1)[0][0] if ind_names else "-"
+            self.home_val_adv_ind.setText(top_ind)
+            self.home_val_avg_lifespan.setText(str(avg_days))
+
+            industry_avgs = {}
+            for ind in industries:
+                d_list = industry_cod_days.get(ind, []) + industry_noncod_days.get(ind, [])
+                if d_list:
+                    industry_avgs[ind] = sum(d_list) / len(d_list)
+
+            if len(industry_avgs) >= 2:
+                sorted_avgs = sorted(industry_avgs.items(), key=lambda x: x[1], reverse=True)
+                top_ind_name, top_avg = sorted_avgs[0]
+
+                # Find lowest non-zero
+                bot_ind_name, bot_avg = None, 0
+                for name, avg in reversed(sorted_avgs):
+                    if avg > 0:
+                        bot_ind_name, bot_avg = name, avg
+                        break
+
+                if bot_ind_name and bot_avg > 0 and bot_ind_name != top_ind_name:
+                    ratio = top_avg / bot_avg
+                    self.home_insight_text.setText(
+                        f"{top_ind_name} ads in Pakistan run an average of {top_avg:.1f} days — {ratio:.1f}x longer than {bot_ind_name} ads"
+                    )
+                else:
+                    self.home_insight_text.setText(f"{top_ind_name} ads lead the market with {top_avg:.1f} days average lifespan.")
+            elif len(industry_avgs) == 1:
+                ind_name, ind_avg = list(industry_avgs.items())[0]
+                self.home_insight_text.setText(f"{ind_name} ads run an average of {ind_avg:.1f} days.")
             else:
-                self.home_insight_text.setText("Insufficient data to compute COD longevity insight.")
+                self.home_insight_text.setText("Insufficient data to compute longevity insight.")
+
+            self.home_industry_chart.clear()
+            ind_counts = Counter(ind_names)
+            sorted_inds = ind_counts.most_common()
+
+            y_pos = list(range(len(sorted_inds)))
+            y_pos.reverse()
+            counts = [item[1] for item in sorted_inds]
+            labels = [item[0] for item in sorted_inds]
+
+            bg_ind = pg.BarGraphItem(x0=0, y=y_pos, width=counts, height=0.6, brush='#e63946')
+            self.home_industry_chart.addItem(bg_ind)
+            self.home_industry_chart.getAxis('left').setTicks([list(zip(y_pos, labels))])
+
+            for y, x in zip(y_pos, counts):
+                text = pg.TextItem(f"{x}", color='#ffffff', anchor=(0, 0.5))
+                self.home_industry_chart.addItem(text)
+                text.setPos(x + (max(counts) * 0.02), y)
+
+            self.home_cod_chart.clear()
+            cod_rates = []
+            for ind in sorted_inds:
+                name = ind[0]
+                c_days = len(industry_cod_days.get(name, []))
+                nc_days = len(industry_noncod_days.get(name, []))
+                tot_days_cat = c_days + nc_days
+                rate = (c_days / tot_days_cat * 100) if tot_days_cat > 0 else 0
+                cod_rates.append((name, rate))
+
+            cod_rates = sorted(cod_rates, key=lambda x: x[1])
+            y_pos_cod = list(range(len(cod_rates)))
+            rates = [item[1] for item in cod_rates]
+            labels_cod = [item[0] for item in cod_rates]
+
+            bg_cod = pg.BarGraphItem(x0=0, y=y_pos_cod, width=rates, height=0.6, brush='#d62828')
+            self.home_cod_chart.addItem(bg_cod)
+            self.home_cod_chart.getAxis('left').setTicks([list(zip(y_pos_cod, labels_cod))])
+
+            for y, x in zip(y_pos_cod, rates):
+                text = pg.TextItem(f"{x:.1f}%", color='#ffffff', anchor=(0, 0.5))
+                self.home_cod_chart.addItem(text)
+                text.setPos(x + 2, y)
 
             sorted_ads = sorted(
                 all_ads,
@@ -1648,49 +1884,116 @@ class AdLensPKWindow(QMainWindow):
             print(f"Error refreshing home dashboard: {exc}")
             self.home_insight_text.setText(f"Error loading dashboard: {exc}")
 
-    def _on_run_collection(self) -> None:
-        """Starts batch ad collection across all industries in a background thread."""
+    def _refresh_collection_stats(self) -> None:
+        try:
+            all_ads = get_all_ads()
+            total = len(all_ads)
+            self.coll_total_db_lbl.setText(f"Current DB Total: {total:,}")
+        except Exception:
+            pass
+
+    def _on_start_collection(self) -> None:
         if self._collection_worker and self._collection_worker.isRunning():
             return
 
-        self.home_collect_button.setEnabled(False)
-        self.home_collect_button.setText("Collecting...")
-        self.home_collect_status.setText("Status: Collecting...")
-        self.home_collect_status.setStyleSheet("color: #f59e0b; font-size: 13px;")
-        self.home_collect_progress.setValue(0)
+        selected_industries = []
+        for btn in self.industry_toggles:
+            if btn.isChecked():
+                selected_industries.append(btn.text())
 
-        self._collection_worker = CollectionWorker(self.industry_options)
+        if not selected_industries:
+            self.coll_log_edit.append("Please select at least one industry to collect.")
+            return
+
+        self.start_coll_btn.setEnabled(False)
+        self.stop_coll_btn.setEnabled(True)
+
+        self.coll_progress_bar.setMaximum(len(selected_industries))
+        self.coll_progress_bar.setValue(0)
+        self.coll_status_table.setRowCount(0)
+        self.coll_log_edit.clear()
+
+        for row, ind in enumerate(selected_industries):
+            self.coll_status_table.insertRow(row)
+            self.coll_status_table.setItem(row, 0, QTableWidgetItem(ind))
+
+            status_item = QTableWidgetItem("Waiting")
+            status_item.setForeground(QColor("#9ca3af"))
+            self.coll_status_table.setItem(row, 1, status_item)
+
+            self.coll_status_table.setItem(row, 2, QTableWidgetItem("-"))
+            self.coll_status_table.setItem(row, 3, QTableWidgetItem("-"))
+
+        self._collection_worker = CollectionWorker(selected_industries)
         self._collection_worker.progress.connect(self._on_collection_progress)
         self._collection_worker.status_update.connect(self._on_collection_status_update)
+        self._collection_worker.log_message.connect(self._on_collection_log)
         self._collection_worker.collection_finished.connect(self._on_collection_finished)
         self._collection_worker.error_occurred.connect(self._on_collection_error)
         self._collection_worker.start()
 
-    def _on_collection_progress(self, index: int, industry: str, count: int) -> None:
-        """Updates progress bar and status after each industry completes."""
-        self.home_collect_progress.setValue(index + 1)
-        self.home_collect_status.setText(
-            f"Status: {industry} done ({count} new ads) — {index + 1}/{len(self.industry_options)} industries"
-        )
+    def _on_stop_collection(self) -> None:
+        if self._collection_worker and self._collection_worker.isRunning():
+            self._collection_worker.cancel()
+            self.stop_coll_btn.setEnabled(False)
+
+    def _on_collection_progress(
+        self,
+        index: int,
+        industry: str,
+        found_count: int,
+        saved_count: int,
+    ) -> None:
+        self.coll_progress_bar.setValue(index + 1)
+        for row in range(self.coll_status_table.rowCount()):
+            if self.coll_status_table.item(row, 0).text() == industry:
+                status_item = QTableWidgetItem("Done")
+                status_item.setForeground(QColor("#10b981"))
+                self.coll_status_table.setItem(row, 1, status_item)
+                self.coll_status_table.setItem(row, 2, QTableWidgetItem(str(found_count)))
+                self.coll_status_table.setItem(row, 3, QTableWidgetItem(str(saved_count)))
+                break
 
     def _on_collection_status_update(self, message: str) -> None:
-        """Updates status label with current collection activity."""
-        self.home_collect_status.setText(f"Status: {message}")
+        if message.startswith("Collecting "):
+            ind = message.replace("Collecting ", "").replace("...", "")
+            for row in range(self.coll_status_table.rowCount()):
+                if self.coll_status_table.item(row, 0).text() == ind:
+                    status_item = QTableWidgetItem("Running")
+                    status_item.setForeground(QColor("#f59e0b"))
+                    self.coll_status_table.setItem(row, 1, status_item)
+                    break
+
+    def _on_collection_log(self, message: str) -> None:
+        self.coll_log_edit.append(message)
+        # Scroll to bottom
+        scrollbar = self.coll_log_edit.verticalScrollBar()
+        scrollbar.setValue(scrollbar.maximum())
 
     def _on_collection_finished(self) -> None:
-        """Handles completion of batch collection, re-enables button and refreshes dashboard."""
-        self.home_collect_button.setEnabled(True)
-        self.home_collect_button.setText("Run Collection Now")
-        self.home_collect_status.setText(
-            f"Status: Complete at {QDateTime.currentDateTime().toString('HH:mm')}"
-        )
-        self.home_collect_status.setStyleSheet("color: #10b981; font-size: 13px;")
+        self.start_coll_btn.setEnabled(True)
+        self.stop_coll_btn.setEnabled(False)
         self._refresh_home()
+        self._refresh_collection_stats()
+        from datetime import datetime
+        now_str = datetime.now().strftime('%H:%M')
+        self.coll_last_run_lbl.setText(f"Last Run: {now_str}")
+
+        total_saved = 0
+        for row in range(self.coll_status_table.rowCount()):
+            saved_item = self.coll_status_table.item(row, 3)
+            if saved_item and saved_item.text().isdigit():
+                total_saved += int(saved_item.text())
+
+        self.coll_collected_lbl.setText(f"Ads Collected Last Run: {total_saved}")
+
+        log_time = datetime.now().strftime('%H:%M:%S')
+        self.coll_log_edit.append(f"[{log_time}] Collection complete — {total_saved} new ads added to database")
 
     def _on_collection_error(self, error_msg: str) -> None:
-        """Handles errors during batch collection."""
-        self.home_collect_status.setText(f"Status: Error — {error_msg}")
-        self.home_collect_status.setStyleSheet("color: #e63946; font-size: 13px;")
+        from datetime import datetime
+        log_time = datetime.now().strftime('%H:%M:%S')
+        self.coll_log_edit.append(f"[{log_time}] ERROR: {error_msg}")
 
     def _on_generate_clicked(self) -> None:
         """Handles 'Generate Report' button click by dispatching work to QThread."""
@@ -1702,8 +2005,8 @@ class AdLensPKWindow(QMainWindow):
         self.market_overview_status.setText(f"Fetching and analyzing ad intelligence for '{industry}'...")
         self.market_overview_status.setStyleSheet("color: #9ca3af; font-size: 14px;")
 
-        # Switch to Market Overview page (index 2)
-        self._switch_page(2)
+        # Switch to Market Overview page (index 3)
+        self._switch_page(3)
 
         # Launch QThread worker
         self._worker = AdFetchWorker(industry=industry, use_mock=use_mock)
@@ -2145,7 +2448,7 @@ class AdLensPKWindow(QMainWindow):
                         self.val_offer_cod.setText(f"{offer_data.get('cod_prevalence_pct', 0.0):.1f}%")
                         pr_ranges = offer_data.get("price_ranges_detected", [])
                         self.val_price_ranges.setText(", ".join(pr_ranges) if pr_ranges else "None")
-                        
+
                         records = offer_data.get("records", [])
                         self.offer_table.setRowCount(len(records))
                         for row, rec in enumerate(records):
@@ -2182,7 +2485,7 @@ class AdLensPKWindow(QMainWindow):
                     print(f"Error parsing historical report JSON payload: {json_err}")
 
             # Switch back to Market Overview to view loaded metrics
-            self._switch_page(2)
+            self._switch_page(3)
         except Exception as exc:
             print(f"Error loading report: {exc}")
 

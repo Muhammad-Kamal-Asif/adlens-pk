@@ -62,7 +62,17 @@ def find_kaggle_csv(directory: Optional[Union[str, Path]] = None) -> Optional[Pa
     if not search_dir.exists() or not search_dir.is_dir():
         return None
 
+    preferred_csv = search_dir / "Pakistan Largest Ecommerce Dataset.csv"
+    if preferred_csv.is_file():
+        return preferred_csv
+
     csv_files = sorted(search_dir.glob("*.csv"))
+    ecommerce_csvs = [
+        csv_file for csv_file in csv_files
+        if "ecommerce" in csv_file.name.lower() or "e-commerce" in csv_file.name.lower()
+    ]
+    if ecommerce_csvs:
+        return ecommerce_csvs[0]
     if csv_files:
         return csv_files[0]
     return None
