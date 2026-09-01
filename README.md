@@ -119,71 +119,21 @@ adlens-pk/
 
 ---
 
-## Installation & Setup
-
-### Prerequisites
-
-- Python 3.12 or higher
-- Git
-- Google Gemini API Key (optional for offline demo mode)
-- Kaggle Account & API Token (optional for demand benchmarking)
-
-### 1. Clone the Repository
+## How to Run
 
 ```bash
 git clone https://github.com/Muhammad-Kamal-Asif/adlens-pk.git
 cd adlens-pk
+python -m pip install -r requirements.txt
+python -m playwright install chromium
+cp .env.example .env
+# Add your GEMINI_API_KEY to .env
+python main.py
 ```
 
-### 2. Create Virtual Environment and Install Dependencies
+The app opens as a desktop window. On first run click "Live Collection" to start gathering Pakistani ad data.
 
-```bash
-python -m venv .venv
-
-# On Windows
-.\.venv\Scripts\activate
-
-# On Linux/macOS
-source .venv/bin/activate
-
-pip install -r requirements.txt
-playwright install chromium
-```
-
-### 3. Configure Environment Variables
-
-Create a `.env` file in the root directory:
-
-```ini
-GEMINI_API_KEY=your_gemini_api_key_here
-META_API_TOKEN=your_meta_graph_api_token_here
-DATABASE_URL=sqlite:///./adlens_local.db
-USE_MOCK_DATA=True
-```
-
-### 4. Optional: Download Kaggle Dataset
-
-To enable real-world transaction demand benchmarking, download the dataset into `src/data/kaggle/`:
-
-```bash
-kaggle datasets download -d zusmani/pakistans-largest-ecommerce-dataset -p src/data/kaggle --unzip
-```
-
----
-
-## Running the Application
-
-### Launch PyQt6 Desktop Client
-
-```bash
-python src/desktop/main_window.py
-```
-
-### Run via Docker Compose
-
-```bash
-docker-compose up --build
-```
+> **Note:** Docker support is included for future cloud deployment. Local installation is recommended for development.
 
 ---
 
