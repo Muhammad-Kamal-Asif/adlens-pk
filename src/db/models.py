@@ -1,4 +1,4 @@
-﻿import os
+import os
 from datetime import datetime
 from sqlalchemy import (
     create_engine,
@@ -38,6 +38,7 @@ class AdRecord(Base):
     hook_type = Column(String(100), nullable=True)
     season_tag = Column(String(50), default="regular")
     pulled_at = Column(DateTime, default=datetime.utcnow)
+    days_active = Column(Integer, nullable=True, default=None)
 
     def to_dict(self) -> dict:
         return {
@@ -53,4 +54,5 @@ class AdRecord(Base):
             "hook_type": self.hook_type,
             "season_tag": self.season_tag,
             "pulled_at": self.pulled_at.isoformat() if self.pulled_at else None,
+            "days_active": self.days_active,
         }

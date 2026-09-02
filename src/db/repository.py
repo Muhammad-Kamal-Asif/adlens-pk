@@ -115,6 +115,7 @@ def save_ads(records: List[RawAdRecord]) -> int:
                     hook_type=hook_type,
                     season_tag=tag_season(pulled_at),
                     pulled_at=pulled_at,
+                    days_active=record_dict.get("days_active"),
                 )
 
                 new_entries.append(ad_entity)

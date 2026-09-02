@@ -30,6 +30,13 @@ class AdSurvivalTrainer:
         logger.info("Loading training data via data_loader...")
         self.df = load_training_data()
         
+        real_days_mask = self.df['days_active'].notnull() & (self.df['days_active'] > 0)
+        real_days_count = real_days_mask.sum()
+        total_count = len(self.df)
+        print(f"Ads with real days_active: {real_days_count} of {total_count}")
+        logger.info(f"Ads with real days_active: {real_days_count} of {total_count}")
+        self.df = self.df[real_days_mask].copy()
+        
         db_mask = self.df['source'] == 'database'
         db_count = db_mask.sum()
         

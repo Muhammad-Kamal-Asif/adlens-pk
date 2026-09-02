@@ -324,18 +324,21 @@ async def scrape_facebook_ads(industry: str, max_ads: int = 100) -> List[RawAdRe
                             pass
 
 
-                    days_active = 1
-                    date_match = re.search(r'(\d{1,2}\s+\w+\s+\d{4})', raw_text)
-                    if date_match:
+                    days_active = None
+                    match = re.search(
+                        r'(?:Started running on |Running since )(\d{1,2}\s+\w+\s+\d{4})|(\d{1,2}\s+\w+\s+\d{4})\s*-\s*\d{1,2}\s+\w+\s+\d{4}',
+                        raw_text,
+                        re.IGNORECASE
+                    )
+                    if match:
+                        date_str = match.group(1) or match.group(2)
                         try:
-                            start_date = datetime.strptime(date_match.group(1), '%d %B %Y')
+                            start_date = datetime.strptime(date_str, '%d %B %Y')
                             days_active = (datetime.now() - start_date).days
-                            days_active = max(1, days_active)
                         except ValueError:
                             try:
-                                start_date = datetime.strptime(date_match.group(1), '%d %b %Y')
+                                start_date = datetime.strptime(date_str, '%d %b %Y')
                                 days_active = (datetime.now() - start_date).days
-                                days_active = max(1, days_active)
                             except ValueError:
                                 pass
 
@@ -390,24 +393,5 @@ async def scrape_facebook_ads(industry: str, max_ads: int = 100) -> List[RawAdRe
 
 def scrape_ads_sync(industry: str, max_ads: int = 100) -> List[RawAdRecord]:
     """Synchronous wrapper that runs the async scraper via asyncio.run()."""
-    from src.core.relevance import filter_by_relevance
     results = asyncio.run(scrape_facebook_ads(industry, max_ads))
-    results = filter_by_relevance(results, industry)
-
-    # ML relevance filter + feedback logging
-    try:
-        from src.ml.relevance_classifier import RelevanceClassifier
-        rc = RelevanceClassifier()
-        kept, filtered_out = rc.filter_relevant(results, industry)
-        for ad in kept:
-            rc.log_feedback(ad.ad_id, industry, was_relevant=True, ad_copy=ad.ad_copy)
-        for ad in filtered_out:
-            rc.log_feedback(ad.ad_id, industry, was_relevant=False, ad_copy=ad.ad_copy)
-        logger.info(
-            "ML filter: %d kept, %d filtered out for industry '%s'",
-            len(kept), len(filtered_out), industry,
-        )
-        return kept
-    except Exception as e:
-        logger.warning("ML relevance filter unavailable, returning keyword-filtered results: %s", e)
-        return results
+    return results

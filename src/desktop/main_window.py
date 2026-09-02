@@ -147,7 +147,7 @@ class CollectionWorker(QThread):
 class AdLensPKWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
-        self.setWindowTitle("AdLens PK")
+        self.setWindowTitle("AdLens PK — Pakistani Ad Intelligence")
         self.setMinimumSize(1200, 850)
         self._worker: Optional[AdFetchWorker] = None
         self._collection_worker: Optional[CollectionWorker] = None
@@ -400,6 +400,14 @@ class AdLensPKWindow(QMainWindow):
             }
         """)
 
+    def _make_sidebar_header(self, text: str) -> QLabel:
+        label = QLabel(text)
+        label.setStyleSheet(
+            "color: #6b7280; font-size: 10px; font-weight: 600; text-transform: uppercase; "
+            "letter-spacing: 1.5px; margin-top: 8px; margin-bottom: 4px; background: none; border: none;"
+        )
+        return label
+
     def _build_sidebar(self) -> QWidget:
         sidebar = QWidget()
         sidebar.setFixedWidth(260)
@@ -462,7 +470,7 @@ class AdLensPKWindow(QMainWindow):
                 font-weight: 600;
             }
             QPushButton:hover {
-                background-color: #d62828;
+                background-color: #f04855;
             }
             QPushButton:disabled {
                 background-color: #4b5563;
@@ -477,10 +485,6 @@ class AdLensPKWindow(QMainWindow):
         nav_divider.setStyleSheet("background-color: #2d3148;")
         layout.addWidget(nav_divider)
 
-        nav_label = QLabel("Views")
-        nav_label.setStyleSheet("color: #9ca3af; font-size: 13px; font-weight: 600; border: none;")
-        layout.addWidget(nav_label)
-
         self.nav_buttons: list[QPushButton] = []
         self.page_names = [
             "Home",
@@ -490,28 +494,46 @@ class AdLensPKWindow(QMainWindow):
             "Offer Matrix",
             "Hook Psychology",
             "Strategy Playbook",
-            "Trend Tracker",
-            "Watchlist",
-            "Report History",
-            "Brand Profile",
             "Price Intel",
             "WhatsApp Intel",
-            "Ad Grader",
+            "Trend Tracker",
             "Trend Velocity",
+            "Ad Grader",
+            "Brand Profile",
             "ML Training",
+            "Watchlist",
+            "Report History",
         ]
-        for index, name in enumerate(self.page_names):
-            btn = QPushButton(name)
-            btn.setCheckable(True)
-            btn.setAutoExclusive(True)
-            btn.clicked.connect(lambda checked, i=index: self._switch_page(i))
-            self.nav_buttons.append(btn)
-            layout.addWidget(btn)
+
+        nav_sections = [
+            ("Overview", ["Home", "Live Collection"]),
+            ("Intelligence", ["Winning Formula", "Market Overview", "Offer Matrix", "Hook Psychology", "Strategy Playbook"]),
+            ("Research", ["Price Intel", "WhatsApp Intel", "Trend Tracker", "Trend Velocity"]),
+            ("Tools", ["Ad Grader", "Brand Profile", "ML Training"]),
+            ("History", ["Watchlist", "Report History"]),
+        ]
+
+        section_index = 0
+        for section_name, section_pages in nav_sections:
+            layout.addWidget(self._make_sidebar_header(section_name))
+            for page_name in section_pages:
+                btn = QPushButton(page_name)
+                btn.setCheckable(True)
+                btn.setAutoExclusive(True)
+                btn.clicked.connect(lambda checked, i=section_index: self._switch_page(i))
+                self.nav_buttons.append(btn)
+                layout.addWidget(btn)
+                section_index += 1
 
         self.nav_buttons[0].setChecked(True)
         layout.addStretch()
 
+        version_label = QLabel("v1.0 — Beta")
+        version_label.setStyleSheet("color: #4b5563; font-size: 10px; background: none; border: none;")
+        layout.addWidget(version_label)
+
         return sidebar
+
 
     def _create_metric_card(self, title: str, default_value: str, subtitle: str) -> Tuple[QFrame, QLabel]:
         """Creates a styled QFrame metric card."""
@@ -774,7 +796,7 @@ class AdLensPKWindow(QMainWindow):
                 font-weight: 700;
                 font-size: 15px;
             }
-            QPushButton:hover { background-color: #d62828; }
+            QPushButton:hover { background-color: #f04855; }
             QPushButton:disabled { background-color: #4b5563; color: #9ca3af; }
         """)
         self.start_coll_btn.clicked.connect(self._on_start_collection)
@@ -1618,51 +1640,51 @@ class AdLensPKWindow(QMainWindow):
         # Page 3: Market Overview
         stack.addWidget(self._build_market_overview_page())
 
-        # Page 3: Offer Matrix
+        # Page 4: Offer Matrix
         self.offer_matrix_page = self._build_offer_matrix_page()
         stack.addWidget(self.offer_matrix_page)
 
-        # Page 4: Hook Psychology
+        # Page 5: Hook Psychology
         stack.addWidget(self._build_hook_psychology_page())
 
-        # Page 5: Strategy Playbook
+        # Page 6: Strategy Playbook
         stack.addWidget(self._build_strategy_playbook_page())
 
-        # Page 6: Trend Tracker
-        self.trend_tracker_page = self._build_trend_tracker_page()
-        stack.addWidget(self.trend_tracker_page)
-
-        # Page 7: Watchlist
-        self.watchlist_page = self._build_watchlist_page()
-        stack.addWidget(self.watchlist_page)
-
-        # Page 8: Report History
-        self.history_page = self._build_report_history_page()
-        stack.addWidget(self.history_page)
-
-        # Page 9: Brand Profile
-        self.brand_profile_page = self._build_brand_profile_page()
-        stack.addWidget(self.brand_profile_page)
-
-        # Page 10: Price Intel
+        # Page 7: Price Intel
         self.price_intel_page = PriceIntelligencePage()
         stack.addWidget(self.price_intel_page)
 
-        # Page 11: WhatsApp Intel
+        # Page 8: WhatsApp Intel
         self.whatsapp_intel_page = WhatsAppAnalyzerPage()
         stack.addWidget(self.whatsapp_intel_page)
 
-        # Page 12: Ad Grader
-        self.ad_grader_page = GraderPage()
-        stack.addWidget(self.ad_grader_page)
+        # Page 9: Trend Tracker
+        self.trend_tracker_page = self._build_trend_tracker_page()
+        stack.addWidget(self.trend_tracker_page)
 
-        # Page 13: Trend Velocity
+        # Page 10: Trend Velocity
         self.trend_velocity_page = TrendVelocityPage()
         stack.addWidget(self.trend_velocity_page)
 
-        # Page 14: ML Training
+        # Page 11: Ad Grader
+        self.ad_grader_page = GraderPage()
+        stack.addWidget(self.ad_grader_page)
+
+        # Page 12: Brand Profile
+        self.brand_profile_page = self._build_brand_profile_page()
+        stack.addWidget(self.brand_profile_page)
+
+        # Page 13: ML Training
         self.ml_training_page = MLTrainingPage()
         stack.addWidget(self.ml_training_page)
+
+        # Page 14: Watchlist
+        self.watchlist_page = self._build_watchlist_page()
+        stack.addWidget(self.watchlist_page)
+
+        # Page 15: Report History
+        self.history_page = self._build_report_history_page()
+        stack.addWidget(self.history_page)
 
         return stack
 
@@ -1674,12 +1696,12 @@ class AdLensPKWindow(QMainWindow):
             self._refresh_home()
         elif index == 1:
             self._refresh_collection_stats()
-        elif index == 7:
+        elif index == 9:
             self._refresh_new_entrants_table()
             self._refresh_season_breakdown()
-        elif index == 8:
+        elif index == 14:
             self._refresh_watchlist_table()
-        elif index == 9:
+        elif index == 15:
             self._refresh_history_table()
 
     def _refresh_home(self) -> None:
