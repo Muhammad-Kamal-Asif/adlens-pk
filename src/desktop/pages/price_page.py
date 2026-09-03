@@ -33,8 +33,12 @@ def _make_card(title: str, default: str, subtitle: str):
     card.setStyleSheet("""
         QFrame {
             background-color: #1e2130;
-            border: 1px solid #2d3148;
-            border-radius: 12px;
+            border-radius: 10px;
+            border-left: 3px solid #e63946;
+            border-top: 1px solid #2d3148;
+            border-right: 1px solid #2d3148;
+            border-bottom: 1px solid #2d3148;
+            padding: 16px;
         }
     """)
     layout = QVBoxLayout(card)
@@ -147,13 +151,22 @@ class PriceIntelligencePage(QWidget):
         btf.setPointSize(16)
         btf.setBold(True)
         band_title.setFont(btf)
-        band_title.setStyleSheet("color: #ffffff;")
+        band_title.setStyleSheet(
+            "color: #ffffff; font-size: 16px; font-weight: 700; margin-bottom: 12px;"
+        )
         layout.addWidget(band_title)
 
         self._band_table = QTableWidget(0, 3)
+        self._band_table.setAlternatingRowColors(True)
+        self._band_table.setStyleSheet(
+            "QTableWidget { gridline-color: #2d3148; alternate-background-color: #1a1d27; } "
+            "QHeaderView::section { background-color: #1e2130; color: #9ca3af; "
+            "font-size: 11px; font-weight: 600; padding: 6px; border: none; }"
+        )
         self._band_table.setHorizontalHeaderLabels(
             ["Band", "Ad Count", "Market Share %"]
         )
+        self._band_table.horizontalHeader().setStretchLastSection(True)
         self._band_table.horizontalHeader().setSectionResizeMode(
             0, QHeaderView.ResizeMode.Stretch
         )
@@ -173,7 +186,9 @@ class PriceIntelligencePage(QWidget):
         ctf.setPointSize(16)
         ctf.setBold(True)
         checker_title.setFont(ctf)
-        checker_title.setStyleSheet("color: #ffffff; margin-top: 8px;")
+        checker_title.setStyleSheet(
+            "color: #ffffff; font-size: 16px; font-weight: 700; margin-bottom: 12px;"
+        )
         layout.addWidget(checker_title)
 
         checker_sub = QLabel(
@@ -224,8 +239,12 @@ class PriceIntelligencePage(QWidget):
         self._result_card.setStyleSheet("""
             QFrame {
                 background-color: #1e2130;
-                border: 1px solid #2d3148;
-                border-radius: 12px;
+                border-radius: 10px;
+                border-left: 3px solid #e63946;
+                border-top: 1px solid #2d3148;
+                border-right: 1px solid #2d3148;
+                border-bottom: 1px solid #2d3148;
+                padding: 16px;
             }
         """)
         result_layout = QVBoxLayout(self._result_card)

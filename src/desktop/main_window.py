@@ -172,6 +172,7 @@ class AdLensPKWindow(QMainWindow):
         main_layout.addWidget(self.sidebar)
 
         self.content_stack = self._build_content_stack()
+        self._apply_table_styles()
         main_layout.addWidget(self.content_stack, 1)
 
         self._setup_status_bar()
@@ -187,7 +188,6 @@ class AdLensPKWindow(QMainWindow):
         self._home_refresh_timer = QTimer(self)
         self._home_refresh_timer.timeout.connect(self._refresh_home)
         self._home_refresh_timer.start(300000)
-
 
     def _make_tray_icon(self) -> QIcon:
         pixmap = QPixmap(48, 48)
@@ -404,7 +404,7 @@ class AdLensPKWindow(QMainWindow):
         label = QLabel(text)
         label.setStyleSheet(
             "color: #6b7280; font-size: 10px; font-weight: 600; text-transform: uppercase; "
-            "letter-spacing: 1.5px; margin-top: 8px; margin-bottom: 4px; background: none; border: none;"
+            "letter-spacing: 1.5px; margin-top: 8px; margin-bottom: 4px; background-color: transparent; border: none;"
         )
         return label
 
@@ -413,9 +413,16 @@ class AdLensPKWindow(QMainWindow):
         sidebar.setFixedWidth(260)
         sidebar.setStyleSheet("background-color: #1a1d27; border-right: 1px solid #2d3148;")
 
-        layout = QVBoxLayout(sidebar)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setStyleSheet("QScrollArea { border: none; background: transparent; } QScrollBar:vertical { width: 4px; background: #1a1d27; } QScrollBar::handle:vertical { background: #2d3148; border-radius: 2px; }")
+
+        inner_widget = QWidget()
+        inner_widget.setStyleSheet("background-color: #1a1d27;")
+        layout = QVBoxLayout(inner_widget)
         layout.setContentsMargins(20, 24, 20, 24)
-        layout.setSpacing(18)
+        layout.setSpacing(4)
         layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
         title = QLabel("AdLens PK")
@@ -520,6 +527,19 @@ class AdLensPKWindow(QMainWindow):
                 btn = QPushButton(page_name)
                 btn.setCheckable(True)
                 btn.setAutoExclusive(True)
+                btn.setStyleSheet("""
+                    QPushButton {
+                        color: #cccccc;
+                        background-color: transparent;
+                        border: none;
+                        padding: 7px 8px 7px 12px;
+                        text-align: left;
+                        font-size: 12px;
+                        font-family: Segoe UI;
+                    }
+                    QPushButton:hover { background-color: #2d3148; color: #ffffff; }
+                    QPushButton:checked { background-color: #1e2130; color: #ffffff; border-left: 3px solid #e63946; }
+                """)
                 btn.clicked.connect(lambda checked, i=section_index: self._switch_page(i))
                 self.nav_buttons.append(btn)
                 layout.addWidget(btn)
@@ -532,51 +552,127 @@ class AdLensPKWindow(QMainWindow):
         version_label.setStyleSheet("color: #4b5563; font-size: 10px; background: none; border: none;")
         layout.addWidget(version_label)
 
+        scroll.setWidget(inner_widget)
+        outer = QVBoxLayout(sidebar)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.addWidget(scroll)
+
         return sidebar
 
 
-    def _create_metric_card(self, title: str, default_value: str, subtitle: str) -> Tuple[QFrame, QLabel]:
-        """Creates a styled QFrame metric card."""
-        card = QFrame()
-        card.setStyleSheet("""
-            QFrame {
+    @staticmethod
+    def _card_style(padding: int = 16) -> str:
+        return f"""
+            QFrame {{
                 background-color: #1e2130;
-                border: 1px solid #2d3148;
-                border-radius: 12px;
-                padding: 18px;
-            }
-        """)
+                border-radius: 10px;
+                border-left: 3px solid #e63946;
+                border-top: 1px solid #2d3148;
+                border-right: 1px solid #2d3148;
+                border-bottom: 1px solid #2d3148;
+                padding: {padding}px;
+            }}
+        """
+
+    @staticmethod
+    def _create_section_header(text: str) -> QLabel:
+        label = QLabel(text)
+        label.setStyleSheet(
+            "color: #ffffff; font-size: 16px; font-weight: 700; margin-bottom: 12px;"
+        )
+        return label
+
+    @staticmethod
+    def _style_table(table: QTableWidget) -> None:
+        table.setAlternatingRowColors(True)
+        table.setStyleSheet(
+            "QTableWidget { gridline-color: #2d3148; alternate-background-color: #1a1d27; } "
+            "QHeaderView::section { background-color: #1e2130; color: #9ca3af; "
+            "font-size: 11px; font-weight: 600; padding: 6px; border: none; }"
+        )
+        table.horizontalHeader().setStretchLastSection(True)
+
+    def _apply_table_styles(self) -> None:
+        for table in self.findChildren(QTableWidget):
+            self._style_table(table)
+            if table.property("fixed_last_column"):
+                table.horizontalHeader().setStretchLastSection(False)
+
+    @staticmethod
+    def _create_scrollable_page(
+        spacing: int = 20, margins: Tuple[int, int, int, int] = (32, 32, 32, 32)
+    ) -> Tuple[QWidget, QVBoxLayout]:
+        page = QWidget()
+        page_layout = QVBoxLayout(page)
+        page_layout.setContentsMargins(0, 0, 0, 0)
+        page_layout.setSpacing(0)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setStyleSheet("QScrollArea { border: none; background: #0f1117; }")
+
+        content_widget = QWidget()
+        content_layout = QVBoxLayout(content_widget)
+        content_layout.setSpacing(spacing)
+        content_layout.setContentsMargins(*margins)
+        content_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+
+        scroll.setWidget(content_widget)
+        page_layout.addWidget(scroll)
+        return page, content_layout
+
+    def _clear_home_formula_cards(self) -> None:
+        while self.home_formula_layout.count():
+            item = self.home_formula_layout.takeAt(0)
+            if widget := item.widget():
+                widget.deleteLater()
+
+    def _add_home_formula_card(self, text: str) -> None:
+        card = QFrame()
+        card.setStyleSheet(self._card_style(padding=12))
         card_layout = QVBoxLayout(card)
-        card_layout.setContentsMargins(18, 18, 18, 18)
-        card_layout.setSpacing(8)
+        card_layout.setContentsMargins(12, 12, 12, 12)
+        card_layout.setSpacing(0)
 
-        title_label = QLabel(title)
-        title_label.setStyleSheet("color: #9ca3af; font-size: 13px; font-weight: 600; border: none; background: transparent;")
+        label = QLabel(text)
+        label.setWordWrap(True)
+        label.setStyleSheet("color: #ffffff; font-size: 13px; background: transparent; border: none;")
+        card_layout.addWidget(label)
+        self.home_formula_layout.addWidget(card)
 
-        val_label = QLabel(default_value)
-        val_font = QFont()
-        val_font.setPointSize(24)
-        val_font.setBold(True)
-        val_label.setFont(val_font)
-        val_label.setStyleSheet("color: #ffffff; border: none; background: transparent;")
-        val_label.setWordWrap(True)
+    def _create_metric_card(self, label: str, value: str, subtitle: str = "") -> tuple:
+        card = QFrame()
+        card.setMinimumHeight(90)
+        card.setStyleSheet(self._card_style(padding=0))
+        layout = QVBoxLayout(card)
+        layout.setContentsMargins(16, 12, 16, 12)
+        layout.setSpacing(6)
 
-        sub_label = QLabel(subtitle)
-        sub_label.setStyleSheet("color: #6b7280; font-size: 12px; border: none; background: transparent;")
+        label_widget = QLabel(label.upper())
+        label_widget.setFixedHeight(14)
+        label_widget.setStyleSheet("color: #9ca3af; font-size: 11px; font-weight: 600; background: transparent; border: none;")
 
-        card_layout.addWidget(title_label)
-        card_layout.addWidget(val_label)
-        card_layout.addWidget(sub_label)
+        value_widget = QLabel(str(value))
+        value_widget.setFixedHeight(28)
+        value_widget.setStyleSheet("color: #ffffff; font-size: 22px; font-weight: 700; background: transparent; border: none;")
 
-        return card, val_label
+        layout.addWidget(label_widget)
+        layout.addWidget(value_widget)
+
+        if subtitle:
+            sub = QLabel(subtitle)
+            sub.setFixedHeight(12)
+            sub.setStyleSheet("color: #6b7280; font-size: 10px; background: transparent; border: none;")
+            layout.addWidget(sub)
+
+        layout.addStretch()
+        return card, value_widget
 
     def _build_home_page(self) -> QWidget:
         """Builds the auto-loading home dashboard showing live market metrics from the database."""
-        page = QWidget()
-        layout = QVBoxLayout(page)
-        layout.setContentsMargins(32, 32, 32, 32)
-        layout.setSpacing(20)
-        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        page, layout = self._create_scrollable_page(
+            spacing=20, margins=(32, 24, 32, 32)
+        )
 
         header_label = QLabel("Pakistani Ad Intelligence — Live Market View")
         header_font = QFont()
@@ -590,29 +686,25 @@ class AdLensPKWindow(QMainWindow):
         self.home_subtitle.setStyleSheet("color: #9ca3af; font-size: 13px;")
         layout.addWidget(self.home_subtitle)
 
+        layout.addWidget(self._create_section_header("Market Overview"))
         cards_layout = QHBoxLayout()
-        cards_layout.setSpacing(18)
+        cards_layout.setSpacing(20)
 
         card_total, self.home_val_total = self._create_metric_card("Total Ads Tracked", "-", "All ads in database")
         card_industries, self.home_val_industries = self._create_metric_card("Industries Covered", "-", "Unique industry count")
         card_avg_days, self.home_val_avg_days = self._create_metric_card("Avg Days Active", "-", "Mean ad longevity")
         card_cod, self.home_val_cod = self._create_metric_card("COD Adoption Rate", "-", "Cash on delivery prevalence")
 
-        cards_layout.addWidget(card_total)
-        cards_layout.addWidget(card_industries)
-        cards_layout.addWidget(card_avg_days)
-        cards_layout.addWidget(card_cod)
+        for card in (card_total, card_industries, card_avg_days, card_cod):
+            card.setFixedHeight(100)
+            card.setMinimumWidth(200)
+            cards_layout.addWidget(card, 1)
         layout.addLayout(cards_layout)
 
+        layout.addWidget(self._create_section_header("Key Insights"))
         self.home_insight_card = QFrame()
-        self.home_insight_card.setStyleSheet("""
-            QFrame {
-                background-color: #1e2130;
-                border-left: 4px solid #e63946;
-                border-radius: 8px;
-                padding: 16px;
-            }
-        """)
+        self.home_insight_card.setMinimumHeight(80)
+        self.home_insight_card.setStyleSheet(self._card_style())
         insight_layout = QVBoxLayout(self.home_insight_card)
         insight_layout.setContentsMargins(16, 12, 16, 12)
         insight_layout.setSpacing(6)
@@ -620,91 +712,91 @@ class AdLensPKWindow(QMainWindow):
         insight_title = QLabel("Top Insight")
         insight_title.setStyleSheet("color: #e63946; font-size: 12px; font-weight: 700; text-transform: uppercase; border: none; background: transparent;")
         self.home_insight_text = QLabel("Analyzing database...")
-        self.home_insight_text.setStyleSheet("color: #ffffff; font-size: 14px; border: none; background: transparent;")
         self.home_insight_text.setWordWrap(True)
+        self.home_insight_text.setMinimumHeight(60)
+        self.home_insight_text.setStyleSheet("color: #ffffff; font-size: 13px; padding: 8px; border: none; background: transparent;")
 
         insight_layout.addWidget(insight_title)
         insight_layout.addWidget(self.home_insight_text)
         layout.addWidget(self.home_insight_card)
 
-        glance_title = QLabel("Market at a glance")
-        glance_title.setStyleSheet("color: #ffffff; font-size: 16px; font-weight: 600; margin-top: 8px;")
-        layout.addWidget(glance_title)
-
+        layout.addWidget(self._create_section_header("Market at a Glance"))
         glance_cards_layout = QHBoxLayout()
-        glance_cards_layout.setSpacing(18)
+        glance_cards_layout.setSpacing(20)
 
         card_active_adv, self.home_val_active_adv = self._create_metric_card("Most Active Advertiser", "-", "Brand with most ads")
         card_adv_ind, self.home_val_adv_ind = self._create_metric_card("Most Advertised Industry", "-", "Industry with most ads")
         card_avg_lifespan, self.home_val_avg_lifespan = self._create_metric_card("Average Ad Lifespan", "-", "Overall average days")
 
-        glance_cards_layout.addWidget(card_active_adv)
-        glance_cards_layout.addWidget(card_adv_ind)
-        glance_cards_layout.addWidget(card_avg_lifespan)
-
+        for card in (card_active_adv, card_adv_ind, card_avg_lifespan):
+            card.setMinimumHeight(90)
+            glance_cards_layout.addWidget(card, 1)
         layout.addLayout(glance_cards_layout)
 
+        layout.addWidget(self._create_section_header("Industry Distribution"))
         charts_layout = QHBoxLayout()
-        charts_layout.setSpacing(18)
+        charts_layout.setSpacing(20)
 
-        self.home_industry_chart = pg.PlotWidget(title="Ads by Industry")
+        industry_chart_layout = QVBoxLayout()
+        industry_chart_layout.setSpacing(8)
+        industry_chart_layout.addWidget(self._create_section_header("Ads by Industry"))
+        self.home_industry_chart = pg.PlotWidget()
         self.home_industry_chart.setBackground("#1e2130")
         self.home_industry_chart.getAxis('bottom').setPen('#9ca3af')
         self.home_industry_chart.getAxis('left').setPen('#9ca3af')
         self.home_industry_chart.getAxis('bottom').setTextPen('#ffffff')
         self.home_industry_chart.getAxis('left').setTextPen('#ffffff')
-        self.home_industry_chart.setMinimumHeight(250)
-        charts_layout.addWidget(self.home_industry_chart)
+        self.home_industry_chart.setFixedHeight(200)
+        industry_chart_layout.addWidget(self.home_industry_chart)
+        charts_layout.addLayout(industry_chart_layout, 1)
 
-        self.home_cod_chart = pg.PlotWidget(title="COD Adoption Rate (%)")
+        cod_chart_layout = QVBoxLayout()
+        cod_chart_layout.setSpacing(8)
+        cod_chart_layout.addWidget(self._create_section_header("COD Adoption Rate (%)"))
+        self.home_cod_chart = pg.PlotWidget()
         self.home_cod_chart.setBackground("#1e2130")
         self.home_cod_chart.getAxis('bottom').setPen('#9ca3af')
         self.home_cod_chart.getAxis('left').setPen('#9ca3af')
         self.home_cod_chart.getAxis('bottom').setTextPen('#ffffff')
         self.home_cod_chart.getAxis('left').setTextPen('#ffffff')
-        self.home_cod_chart.setMinimumHeight(250)
-        charts_layout.addWidget(self.home_cod_chart)
-
+        self.home_cod_chart.setFixedHeight(200)
+        cod_chart_layout.addWidget(self.home_cod_chart)
+        charts_layout.addLayout(cod_chart_layout, 1)
         layout.addLayout(charts_layout)
 
-        table_title = QLabel("Top 10 Longest-Running Ads")
-        table_title.setStyleSheet("color: #ffffff; font-size: 16px; font-weight: 600; margin-top: 8px;")
-        layout.addWidget(table_title)
-
+        layout.addWidget(self._create_section_header("Top Performing Ads"))
         self.home_top_ads_table = QTableWidget(0, 5)
         self.home_top_ads_table.setHorizontalHeaderLabels(["Brand", "Industry", "Days Active", "CTA", "Has COD"])
-        self.home_top_ads_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-        self.home_top_ads_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
-        self.home_top_ads_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
-        self.home_top_ads_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
-        self.home_top_ads_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
+        self.home_top_ads_table.setProperty("fixed_last_column", True)
+        self._style_table(self.home_top_ads_table)
+        home_header = self.home_top_ads_table.horizontalHeader()
+        home_header.setStretchLastSection(False)
+        home_header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        for column, width in ((1, 100), (2, 90), (3, 140), (4, 70)):
+            home_header.setSectionResizeMode(column, QHeaderView.ResizeMode.Fixed)
+            self.home_top_ads_table.setColumnWidth(column, width)
         self.home_top_ads_table.verticalHeader().setVisible(False)
-        self.home_top_ads_table.setMinimumHeight(240)
+        self.home_top_ads_table.setMinimumHeight(220)
         layout.addWidget(self.home_top_ads_table)
 
-        formula_title = QLabel("Winning Formula by Industry")
-        formula_title.setStyleSheet("color: #ffffff; font-size: 16px; font-weight: 600; margin-top: 8px;")
-        layout.addWidget(formula_title)
-
-        self.home_formula_list = QListWidget()
-        self.home_formula_list.setMinimumHeight(160)
-        layout.addWidget(self.home_formula_list)
+        layout.addWidget(self._create_section_header("Winning Formula by Industry"))
+        self.home_formula_container = QWidget()
+        self.home_formula_container.setStyleSheet("background: transparent;")
+        self.home_formula_layout = QVBoxLayout(self.home_formula_container)
+        self.home_formula_layout.setContentsMargins(0, 0, 0, 0)
+        self.home_formula_layout.setSpacing(8)
+        layout.addWidget(self.home_formula_container)
 
         self.home_bottom_updated = QLabel("Database last updated: — | 0 ads tracked")
         self.home_bottom_updated.setStyleSheet("color: #9ca3af; font-size: 12px; margin-top: 12px;")
         self.home_bottom_updated.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.home_bottom_updated)
-
         layout.addStretch()
         return page
 
     def _build_collection_page(self) -> QWidget:
         from PyQt6.QtWidgets import QTextEdit
-        page = QWidget()
-        layout = QVBoxLayout(page)
-        layout.setContentsMargins(32, 32, 32, 32)
-        layout.setSpacing(24)
-        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        page, layout = self._create_scrollable_page(spacing=24)
 
         # Header
         header_label = QLabel("Live Data Collection")
@@ -721,14 +813,7 @@ class AdLensPKWindow(QMainWindow):
 
         # Status Banner
         banner_frame = QFrame()
-        banner_frame.setStyleSheet("""
-            QFrame {
-                background-color: #1e2130;
-                border: 1px solid #2d3148;
-                border-radius: 8px;
-                padding: 16px;
-            }
-        """)
+        banner_frame.setStyleSheet(self._card_style())
         banner_layout = QHBoxLayout(banner_frame)
         banner_layout.setSpacing(32)
 
@@ -746,8 +831,7 @@ class AdLensPKWindow(QMainWindow):
         layout.addWidget(banner_frame)
 
         # Industry Selector Grid
-        ind_title = QLabel("Select Industries to Collect")
-        ind_title.setStyleSheet("color: #ffffff; font-size: 16px; font-weight: 600; margin-top: 16px;")
+        ind_title = self._create_section_header("Select Industries to Collect")
         layout.addWidget(ind_title)
 
         grid_layout = QHBoxLayout()
@@ -828,8 +912,7 @@ class AdLensPKWindow(QMainWindow):
         layout.addLayout(controls_layout)
 
         # Real-time log
-        log_title = QLabel("Live Collection Log")
-        log_title.setStyleSheet("color: #ffffff; font-size: 16px; font-weight: 600; margin-top: 16px;")
+        log_title = self._create_section_header("Live Collection Log")
         layout.addWidget(log_title)
 
         self.coll_log_edit = QTextEdit()
@@ -882,11 +965,7 @@ class AdLensPKWindow(QMainWindow):
 
     def _build_market_overview_page(self) -> QWidget:
         """Constructs the Market Overview page featuring three metric cards as QFrame widgets."""
-        page = QWidget()
-        layout = QVBoxLayout(page)
-        layout.setContentsMargins(32, 32, 32, 32)
-        layout.setSpacing(24)
-        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        page, layout = self._create_scrollable_page(spacing=24)
 
         # Header title
         header_label = QLabel("Market Overview")
@@ -923,12 +1002,7 @@ class AdLensPKWindow(QMainWindow):
 
         layout.addLayout(cards_layout)
         # Survivor Ads Section
-        survivor_title = QLabel("Survivor Ads")
-        survivor_title_font = QFont()
-        survivor_title_font.setPointSize(18)
-        survivor_title_font.setBold(True)
-        survivor_title.setFont(survivor_title_font)
-        survivor_title.setStyleSheet("color: #ffffff; margin-top: 12px;")
+        survivor_title = self._create_section_header("Survivor Ads")
         layout.addWidget(survivor_title)
 
         survivor_sub = QLabel("Long-running ads (30+ days) — proven creative winners worth emulating.")
@@ -965,11 +1039,7 @@ class AdLensPKWindow(QMainWindow):
 
     def _build_offer_matrix_page(self) -> QWidget:
         """Constructs Page 1: Offer Matrix."""
-        page = QWidget()
-        layout = QVBoxLayout(page)
-        layout.setContentsMargins(32, 32, 32, 32)
-        layout.setSpacing(20)
-        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        page, layout = self._create_scrollable_page()
 
         header_label = QLabel("Offer Matrix")
         header_font = QFont()
@@ -1003,12 +1073,7 @@ class AdLensPKWindow(QMainWindow):
         layout.addWidget(self.offer_table, 1)
 
         # Market Structure section
-        ms_title = QLabel("Market Structure")
-        ms_title_font = QFont()
-        ms_title_font.setPointSize(16)
-        ms_title_font.setBold(True)
-        ms_title.setFont(ms_title_font)
-        ms_title.setStyleSheet("color: #ffffff; margin-top: 8px;")
+        ms_title = self._create_section_header("Market Structure")
         layout.addWidget(ms_title)
 
         ms_cards_layout = QHBoxLayout()
@@ -1047,11 +1112,7 @@ class AdLensPKWindow(QMainWindow):
 
     def _build_hook_psychology_page(self) -> QWidget:
         """Constructs Page 2: Hook Psychology with Dominant Angle metric card and detailed hooks table."""
-        page = QWidget()
-        layout = QVBoxLayout(page)
-        layout.setContentsMargins(32, 32, 32, 32)
-        layout.setSpacing(20)
-        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        page, layout = self._create_scrollable_page()
 
         # Header
         header_label = QLabel("Hook Psychology")
@@ -1073,8 +1134,7 @@ class AdLensPKWindow(QMainWindow):
         layout.addWidget(card_angle)
 
         # Table header label
-        table_title = QLabel("Extracted Ad Hooks & Classifications")
-        table_title.setStyleSheet("color: #ffffff; font-size: 16px; font-weight: 600; margin-top: 10px;")
+        table_title = self._create_section_header("Extracted Ad Hooks & Classifications")
         layout.addWidget(table_title)
 
         # 2. QTableWidget with specified columns
@@ -1099,12 +1159,7 @@ class AdLensPKWindow(QMainWindow):
         layout.addWidget(self.hooks_table, 1)
 
         # Hook Saturation Index table
-        sat_title = QLabel("Hook Saturation Index")
-        sat_title_font = QFont()
-        sat_title_font.setPointSize(16)
-        sat_title_font.setBold(True)
-        sat_title.setFont(sat_title_font)
-        sat_title.setStyleSheet("color: #ffffff; margin-top: 8px;")
+        sat_title = self._create_section_header("Hook Saturation Index")
         layout.addWidget(sat_title)
 
         sat_sub = QLabel("Market share and saturation level for each hook archetype.")
@@ -1127,11 +1182,7 @@ class AdLensPKWindow(QMainWindow):
 
     def _build_strategy_playbook_page(self) -> QWidget:
         """Constructs Page 3: Strategy Playbook with Gemini AI brief card, copy hooks list, and export button."""
-        page = QWidget()
-        layout = QVBoxLayout(page)
-        layout.setContentsMargins(32, 32, 32, 32)
-        layout.setSpacing(20)
-        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        page, layout = self._create_scrollable_page()
 
         # Header row with Export Buttons
         header_row = QHBoxLayout()
@@ -1201,26 +1252,13 @@ class AdLensPKWindow(QMainWindow):
 
         layout.addLayout(header_row)
 
-        # Scrollable container for brief content
-        scroll_area = QScrollArea()
-        scroll_area.setWidgetResizable(True)
-        scroll_area.setStyleSheet("QScrollArea { border: none; background: transparent; }")
-
-        scroll_widget = QWidget()
-        scroll_layout = QVBoxLayout(scroll_widget)
-        scroll_layout.setContentsMargins(0, 0, 0, 0)
-        scroll_layout.setSpacing(18)
+        brief_content_layout = QVBoxLayout()
+        brief_content_layout.setContentsMargins(0, 0, 0, 0)
+        brief_content_layout.setSpacing(18)
 
         # 1. Dark QFrame Card for Gemini AI Brief
         brief_card = QFrame()
-        brief_card.setStyleSheet("""
-            QFrame {
-                background-color: #1e2130;
-                border: 1px solid #2d3148;
-                border-radius: 12px;
-                padding: 20px;
-            }
-        """)
+        brief_card.setStyleSheet(self._card_style())
         brief_layout = QVBoxLayout(brief_card)
         brief_layout.setSpacing(14)
 
@@ -1259,29 +1297,23 @@ class AdLensPKWindow(QMainWindow):
         brief_layout.addWidget(offer_title)
         brief_layout.addWidget(self.val_brief_offer)
 
-        scroll_layout.addWidget(brief_card)
+        brief_content_layout.addWidget(brief_card)
 
         # 2. Suggested Copy Hooks Section
-        hooks_title = QLabel("Suggested Copy Hooks")
-        hooks_title.setStyleSheet("color: #ffffff; font-size: 16px; font-weight: 600; margin-top: 6px;")
-        scroll_layout.addWidget(hooks_title)
+        hooks_title = self._create_section_header("Suggested Copy Hooks")
+        brief_content_layout.addWidget(hooks_title)
 
         self.hooks_list_widget = QListWidget()
         self.hooks_list_widget.setMinimumHeight(180)
-        scroll_layout.addWidget(self.hooks_list_widget)
+        brief_content_layout.addWidget(self.hooks_list_widget)
 
-        scroll_area.setWidget(scroll_widget)
-        layout.addWidget(scroll_area, 1)
+        layout.addLayout(brief_content_layout)
 
         return page
 
     def _build_watchlist_page(self) -> QWidget:
         """Constructs Page 5: Competitor Watchlist."""
-        page = QWidget()
-        layout = QVBoxLayout(page)
-        layout.setContentsMargins(32, 32, 32, 32)
-        layout.setSpacing(20)
-        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        page, layout = self._create_scrollable_page()
 
         # Header
         header_label = QLabel("Competitor Watchlist")
@@ -1303,14 +1335,7 @@ class AdLensPKWindow(QMainWindow):
 
         # Add to watchlist controls card
         input_card = QFrame()
-        input_card.setStyleSheet("""
-            QFrame {
-                background-color: #1e2130;
-                border: 1px solid #2d3148;
-                border-radius: 10px;
-                padding: 12px;
-            }
-        """)
+        input_card.setStyleSheet(self._card_style(padding=12))
         input_layout = QHBoxLayout(input_card)
         input_layout.setContentsMargins(12, 8, 12, 8)
         input_layout.setSpacing(12)
@@ -1367,11 +1392,7 @@ class AdLensPKWindow(QMainWindow):
 
     def _build_report_history_page(self) -> QWidget:
         """Constructs Page 6: Report History."""
-        page = QWidget()
-        layout = QVBoxLayout(page)
-        layout.setContentsMargins(32, 32, 32, 32)
-        layout.setSpacing(20)
-        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        page, layout = self._create_scrollable_page()
 
         # Header
         header_label = QLabel("Report History")
@@ -1419,11 +1440,7 @@ class AdLensPKWindow(QMainWindow):
 
     def _build_brand_profile_page(self) -> QWidget:
         """Constructs Page 7: Brand Profile with search and metrics."""
-        page = QWidget()
-        layout = QVBoxLayout(page)
-        layout.setContentsMargins(32, 32, 32, 32)
-        layout.setSpacing(20)
-        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        page, layout = self._create_scrollable_page()
 
         header_label = QLabel("Brand Profile")
         header_font = QFont()
@@ -1469,14 +1486,7 @@ class AdLensPKWindow(QMainWindow):
 
         # Metrics card row
         metrics_card = QFrame()
-        metrics_card.setStyleSheet("""
-            QFrame {
-                background-color: #1e2130;
-                border: 1px solid #2d3148;
-                border-radius: 12px;
-                padding: 16px;
-            }
-        """)
+        metrics_card.setStyleSheet(self._card_style())
         metrics_layout = QHBoxLayout(metrics_card)
         metrics_layout.setSpacing(24)
 
@@ -1505,8 +1515,7 @@ class AdLensPKWindow(QMainWindow):
         layout.addWidget(metrics_card)
 
         # Ads table
-        ads_section_label = QLabel("Ad Records")
-        ads_section_label.setStyleSheet("color: #ffffff; font-size: 16px; font-weight: 600;")
+        ads_section_label = self._create_section_header("Ad Records")
         layout.addWidget(ads_section_label)
 
         self.brand_ads_table = QTableWidget(0, 5)
@@ -1529,11 +1538,7 @@ class AdLensPKWindow(QMainWindow):
 
     def _build_trend_tracker_page(self) -> QWidget:
         """Constructs Page 4: Trend Tracker with new entrants and season breakdown."""
-        page = QWidget()
-        layout = QVBoxLayout(page)
-        layout.setContentsMargins(32, 32, 32, 32)
-        layout.setSpacing(20)
-        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        page, layout = self._create_scrollable_page()
 
         header_label = QLabel("Trend Tracker")
         header_font = QFont()
@@ -1548,12 +1553,7 @@ class AdLensPKWindow(QMainWindow):
         layout.addWidget(sub_label)
 
         # New This Week section
-        section_label = QLabel("New This Week")
-        section_font = QFont()
-        section_font.setPointSize(18)
-        section_font.setBold(True)
-        section_label.setFont(section_font)
-        section_label.setStyleSheet("color: #ffffff; margin-top: 8px;")
+        section_label = self._create_section_header("New This Week")
         layout.addWidget(section_label)
 
         section_sub = QLabel("Brands that first appeared in the last 7 days with 1-2 ads detected.")
@@ -1577,12 +1577,7 @@ class AdLensPKWindow(QMainWindow):
         layout.addWidget(self.new_entrants_table)
 
         # Season Breakdown Section
-        season_title = QLabel("Seasonality Breakdown")
-        season_title_font = QFont()
-        season_title_font.setPointSize(18)
-        season_title_font.setBold(True)
-        season_title.setFont(season_title_font)
-        season_title.setStyleSheet("color: #ffffff; margin-top: 16px;")
+        season_title = self._create_section_header("Seasonality Breakdown")
         layout.addWidget(season_title)
 
         season_sub = QLabel("Ad counts grouped by Pakistani e-commerce season tag.")
@@ -1718,7 +1713,7 @@ class AdLensPKWindow(QMainWindow):
                 self.home_val_cod.setText("-")
                 self.home_insight_text.setText("No ad data in database yet. Run a scrape to populate insights.")
                 self.home_top_ads_table.setRowCount(0)
-                self.home_formula_list.clear()
+                self._clear_home_formula_cards()
                 return
 
             from datetime import datetime as _dt
@@ -1771,8 +1766,9 @@ class AdLensPKWindow(QMainWindow):
             cod_pct = round(cod_count / total * 100, 1)
             self.home_val_cod.setText(f"{cod_pct}%")
 
-            page_names = [ad.get("page_name", "Unknown") for ad in all_ads]
-            top_page = Counter(page_names).most_common(1)[0][0] if page_names else "-"
+            NOISE_BRANDS = {'video player', 'video', 'player', 'sponsored', 'see more', 'learn more', 'shop now', 'ad', 'facebook', 'instagram', 'unknown', 'none', 'advertisement'}
+            brands = [a['page_name'] for a in all_ads if a.get('page_name') and len(a['page_name']) > 3 and a['page_name'].lower().strip() not in NOISE_BRANDS and not a['page_name'].lower().startswith('http')]
+            top_page = Counter(brands).most_common(1)[0][0] if brands else "-"
             self.home_val_active_adv.setText(top_page)
 
             ind_names = [str(ad.get("industry") or "General") for ad in all_ads]
@@ -1786,33 +1782,23 @@ class AdLensPKWindow(QMainWindow):
                 if d_list:
                     industry_avgs[ind] = sum(d_list) / len(d_list)
 
-            if len(industry_avgs) >= 2:
-                sorted_avgs = sorted(industry_avgs.items(), key=lambda x: x[1], reverse=True)
-                top_ind_name, top_avg = sorted_avgs[0]
-
-                # Find lowest non-zero
-                bot_ind_name, bot_avg = None, 0
-                for name, avg in reversed(sorted_avgs):
-                    if avg > 0:
-                        bot_ind_name, bot_avg = name, avg
-                        break
-
-                if bot_ind_name and bot_avg > 0 and bot_ind_name != top_ind_name:
-                    ratio = top_avg / bot_avg
-                    self.home_insight_text.setText(
-                        f"{top_ind_name} ads in Pakistan run an average of {top_avg:.1f} days — {ratio:.1f}x longer than {bot_ind_name} ads"
-                    )
-                else:
-                    self.home_insight_text.setText(f"{top_ind_name} ads lead the market with {top_avg:.1f} days average lifespan.")
-            elif len(industry_avgs) == 1:
-                ind_name, ind_avg = list(industry_avgs.items())[0]
-                self.home_insight_text.setText(f"{ind_name} ads run an average of {ind_avg:.1f} days.")
-            else:
-                self.home_insight_text.setText("Insufficient data to compute longevity insight.")
+            try:
+                import pandas as pd
+                df = pd.DataFrame(all_ads)
+                if not df.empty and 'industry' in df.columns:
+                    industry_counts = df['industry'].value_counts()
+                    top_industry = industry_counts.index[0]
+                    top_count = industry_counts.iloc[0]
+                    cod_count = df[df['has_cod'] == True].shape[0] if 'has_cod' in df.columns else 0
+                    cod_pct = round((cod_count / len(df)) * 100, 1)
+                    insight_text = f"AdLens PK is tracking {len(df):,} Pakistani ads across {df['industry'].nunique()} industries. {top_industry} leads with {top_count} ads. Overall COD adoption: {cod_pct}%."
+                    self.home_insight_text.setText(insight_text)
+            except Exception as e:
+                self.home_insight_text.setText(f"{total:,} Pakistani ads tracked across {len(industries)} industries.")
 
             self.home_industry_chart.clear()
             ind_counts = Counter(ind_names)
-            sorted_inds = ind_counts.most_common()
+            sorted_inds = ind_counts.most_common(8)
 
             y_pos = list(range(len(sorted_inds)))
             y_pos.reverse()
@@ -1882,11 +1868,13 @@ class AdLensPKWindow(QMainWindow):
                 self.home_top_ads_table.setItem(row_idx, 3, cta_item)
                 self.home_top_ads_table.setItem(row_idx, 4, cod_item)
 
-            self.home_formula_list.clear()
+            self._clear_home_formula_cards()
             for ind in sorted(industries):
                 winners = industry_winners.get(ind, [])
                 if not winners:
-                    self.home_formula_list.addItem(QListWidgetItem(f"{ind}: No winning ads (30+ days) found yet."))
+                    self._add_home_formula_card(
+                        f"{ind}: No winning ads (30+ days) found yet."
+                    )
                     continue
 
                 cta_counter = Counter(str(w.get("hook_type") or "Other") for w in winners)
@@ -1897,10 +1885,10 @@ class AdLensPKWindow(QMainWindow):
                     max(0, (now - _dt.fromisoformat(w["pulled_at"])).days)
                     for w in winners if w.get("pulled_at")
                 ) / len(winners), 0)
-                self.home_formula_list.addItem(QListWidgetItem(
+                self._add_home_formula_card(
                     f"{ind}: {len(winners)} winners | Top hook: {top_hook} | "
                     f"{cod_share}% COD | Avg {int(avg_d)} days active"
-                ))
+                )
 
         except Exception as exc:
             print(f"Error refreshing home dashboard: {exc}")

@@ -38,10 +38,20 @@ class WhatsAppAnalyzerPage(QWidget):
         self.refresh()
 
     def _setup_ui(self) -> None:
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(32, 32, 32, 32)
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setStyleSheet("QScrollArea { border: none; background: #0f1117; }")
+        outer.addWidget(scroll)
+
+        content = QWidget()
+        layout = QVBoxLayout(content)
+        layout.setContentsMargins(32, 24, 32, 32)
         layout.setSpacing(20)
         layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        scroll.setWidget(content)
 
         # Header Title & Description
         header_label = QLabel("WhatsApp CTA Intelligence")
@@ -86,9 +96,11 @@ class WhatsAppAnalyzerPage(QWidget):
         insight_frame.setStyleSheet("""
             QFrame {
                 background-color: #1e2130;
-                border: 1px solid #2d3148;
-                border-left: 4px solid #25D366;
                 border-radius: 10px;
+                border-left: 3px solid #e63946;
+                border-top: 1px solid #2d3148;
+                border-right: 1px solid #2d3148;
+                border-bottom: 1px solid #2d3148;
                 padding: 16px;
             }
         """)
@@ -109,7 +121,9 @@ class WhatsAppAnalyzerPage(QWidget):
 
         # 3. Bar Chart: WhatsApp Adoption by Industry
         chart_title = QLabel("WhatsApp Adoption by Industry")
-        chart_title.setStyleSheet("color: #ffffff; font-size: 16px; font-weight: 600; margin-top: 4px;")
+        chart_title.setStyleSheet(
+            "color: #ffffff; font-size: 16px; font-weight: 700; margin-bottom: 12px;"
+        )
         layout.addWidget(chart_title)
 
         self.industry_chart = pg.PlotWidget(title="WhatsApp Ad Count by Industry")
@@ -121,10 +135,18 @@ class WhatsAppAnalyzerPage(QWidget):
 
         # 4. Table: Sample WhatsApp Ads
         table_title = QLabel("Sample WhatsApp Ad Creatives & Extracted Phone Numbers")
-        table_title.setStyleSheet("color: #ffffff; font-size: 16px; font-weight: 600; margin-top: 6px;")
+        table_title.setStyleSheet(
+            "color: #ffffff; font-size: 16px; font-weight: 700; margin-bottom: 12px;"
+        )
         layout.addWidget(table_title)
 
         self.sample_table = QTableWidget()
+        self.sample_table.setAlternatingRowColors(True)
+        self.sample_table.setStyleSheet(
+            "QTableWidget { gridline-color: #2d3148; alternate-background-color: #1a1d27; } "
+            "QHeaderView::section { background-color: #1e2130; color: #9ca3af; "
+            "font-size: 11px; font-weight: 600; padding: 6px; border: none; }"
+        )
         self.sample_table.setColumnCount(4)
         self.sample_table.setHorizontalHeaderLabels([
             "Page Name",
@@ -132,6 +154,7 @@ class WhatsAppAnalyzerPage(QWidget):
             "Days Active",
             "Ad Copy (80 chars)",
         ])
+        self.sample_table.horizontalHeader().setStretchLastSection(True)
         self.sample_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Interactive)
         self.sample_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Interactive)
         self.sample_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
@@ -139,22 +162,6 @@ class WhatsAppAnalyzerPage(QWidget):
         self.sample_table.setColumnWidth(0, 180)
         self.sample_table.setColumnWidth(1, 160)
         self.sample_table.verticalHeader().setVisible(False)
-        self.sample_table.setStyleSheet("""
-            QTableWidget {
-                background-color: #1e2130;
-                color: #ffffff;
-                gridline-color: #2d3148;
-                border: 1px solid #2d3148;
-                border-radius: 8px;
-            }
-            QHeaderView::section {
-                background-color: #1a1d27;
-                color: #9ca3af;
-                padding: 8px;
-                font-weight: 600;
-                border: 1px solid #2d3148;
-            }
-        """)
         self.sample_table.setMinimumHeight(220)
         layout.addWidget(self.sample_table, 1)
 
@@ -166,8 +173,11 @@ class WhatsAppAnalyzerPage(QWidget):
         card.setStyleSheet("""
             QFrame {
                 background-color: #1e2130;
-                border: 1px solid #2d3148;
-                border-radius: 12px;
+                border-radius: 10px;
+                border-left: 3px solid #e63946;
+                border-top: 1px solid #2d3148;
+                border-right: 1px solid #2d3148;
+                border-bottom: 1px solid #2d3148;
                 padding: 16px;
             }
         """)

@@ -10,6 +10,7 @@ from PyQt6.QtWidgets import (
     QFrame,
     QHeaderView,
     QLabel,
+    QScrollArea,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
@@ -140,14 +141,15 @@ _TABLE_STYLE = """
         border: 1px solid #2d3148;
         border-radius: 8px;
         gridline-color: #2d3148;
+        alternate-background-color: #1a1d27;
     }
     QTableWidget::item { padding: 8px; }
     QHeaderView::section {
-        background-color: #171924;
+        background-color: #1e2130;
         color: #9ca3af;
         border: none;
-        border-bottom: 1px solid #2d3148;
-        padding: 10px 8px;
+        padding: 6px;
+        font-size: 11px;
         font-weight: 600;
     }
 """
@@ -162,10 +164,20 @@ class WinningFormulaPage(QWidget):
         self.industry_combo.currentTextChanged.connect(self._on_industry_changed)
 
     def _build_ui(self) -> None:
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(32, 32, 32, 32)
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setStyleSheet("QScrollArea { border: none; background: #0f1117; }")
+        outer.addWidget(scroll)
+
+        content = QWidget()
+        layout = QVBoxLayout(content)
+        layout.setContentsMargins(32, 24, 32, 32)
         layout.setSpacing(20)
         layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        scroll.setWidget(content)
 
         header = QLabel("Winning Ad Formula")
         hf = QFont()
@@ -188,9 +200,12 @@ class WinningFormulaPage(QWidget):
         self.formula_card.setStyleSheet("""
             QFrame {
                 background-color: #1e2130;
-                border: 1px solid #2d3148;
-                border-left: 4px solid #e63946;
-                border-radius: 8px;
+                border-radius: 10px;
+                border-left: 3px solid #e63946;
+                border-top: 1px solid #2d3148;
+                border-right: 1px solid #2d3148;
+                border-bottom: 1px solid #2d3148;
+                padding: 16px;
             }
         """)
         cl = QVBoxLayout(self.formula_card)
@@ -218,11 +233,9 @@ class WinningFormulaPage(QWidget):
         layout.addWidget(self.formula_card)
 
         self.table_label = QLabel("Winner Ads")
-        tlf = QFont()
-        tlf.setPointSize(14)
-        tlf.setBold(True)
-        self.table_label.setFont(tlf)
-        self.table_label.setStyleSheet("color: #ffffff;")
+        self.table_label.setStyleSheet(
+            "color: #ffffff; font-size: 16px; font-weight: 700; margin-bottom: 12px;"
+        )
         layout.addWidget(self.table_label)
 
         self.table = QTableWidget()
@@ -230,7 +243,9 @@ class WinningFormulaPage(QWidget):
         self.table.setHorizontalHeaderLabels([
             "Page Name", "Days Active", "Has COD", "CTA", "Ad Copy (first 80 chars)"
         ])
+        self.table.setAlternatingRowColors(True)
         self.table.setStyleSheet(_TABLE_STYLE)
+        self.table.horizontalHeader().setStretchLastSection(True)
         self.table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeMode.Stretch)
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)

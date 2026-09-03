@@ -11,6 +11,7 @@ from PyQt6.QtWidgets import (
     QListWidgetItem,
     QMessageBox,
     QPushButton,
+    QScrollArea,
     QTextEdit,
     QVBoxLayout,
     QWidget,
@@ -35,10 +36,20 @@ class GraderPage(QWidget):
         self._build_ui()
 
     def _build_ui(self) -> None:
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(32, 32, 32, 32)
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setStyleSheet("QScrollArea { border: none; background: #0f1117; }")
+        outer.addWidget(scroll)
+
+        content = QWidget()
+        layout = QVBoxLayout(content)
+        layout.setContentsMargins(32, 24, 32, 32)
         layout.setSpacing(20)
         layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        scroll.setWidget(content)
 
         # 1. Header
         header = QLabel("Ad Copy Grader")
@@ -171,7 +182,9 @@ class GraderPage(QWidget):
 
         # 7. Feedback section
         feedback_title = QLabel("Why this score:")
-        feedback_title.setStyleSheet("color: #ffffff; font-size: 16px; font-weight: 600; margin-top: 10px;")
+        feedback_title.setStyleSheet(
+            "color: #ffffff; font-size: 16px; font-weight: 700; margin-bottom: 12px;"
+        )
         layout.addWidget(feedback_title)
 
         self.feedback_list = QListWidget()

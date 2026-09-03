@@ -14,6 +14,7 @@ from PyQt6.QtWidgets import (
     QLabel,
     QProgressBar,
     QPushButton,
+    QScrollArea,
     QTextEdit,
     QVBoxLayout,
     QWidget,
@@ -40,10 +41,20 @@ class MLTrainingPage(QWidget):
     # ── UI construction ───────────────────────────────────────────────────────
 
     def _build_ui(self) -> None:
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(32, 32, 32, 32)
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setStyleSheet("QScrollArea { border: none; background: #0f1117; }")
+        outer.addWidget(scroll)
+
+        content = QWidget()
+        layout = QVBoxLayout(content)
+        layout.setContentsMargins(32, 24, 32, 32)
         layout.setSpacing(20)
         layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        scroll.setWidget(content)
 
         # Header
         header = QLabel("ML Training Center")
@@ -120,7 +131,9 @@ class MLTrainingPage(QWidget):
 
         # Training log
         log_title = QLabel("Training Log")
-        log_title.setStyleSheet("color: #ffffff; font-size: 16px; font-weight: 600;")
+        log_title.setStyleSheet(
+            "color: #ffffff; font-size: 16px; font-weight: 700; margin-bottom: 12px;"
+        )
         layout.addWidget(log_title)
 
         self._log = QTextEdit()
@@ -148,8 +161,11 @@ class MLTrainingPage(QWidget):
         card.setStyleSheet("""
             QFrame {
                 background-color: #1e2130;
-                border: 1px solid #2d3148;
-                border-radius: 12px;
+                border-radius: 10px;
+                border-left: 3px solid #e63946;
+                border-top: 1px solid #2d3148;
+                border-right: 1px solid #2d3148;
+                border-bottom: 1px solid #2d3148;
                 padding: 16px;
             }
         """)
