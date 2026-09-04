@@ -5,7 +5,7 @@ from collections import Counter
 from typing import List, Optional, Tuple, Dict, Any
 
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer, QDateTime
-from PyQt6.QtGui import QColor, QFont, QPalette, QIcon, QPainter, QPixmap
+from PyQt6.QtGui import QColor, QCursor, QFont, QPalette, QIcon, QPainter, QPixmap
 from PyQt6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -28,6 +28,7 @@ from PyQt6.QtWidgets import (
     QSystemTrayIcon,
     QTableWidget,
     QTableWidgetItem,
+    QToolTip,
     QVBoxLayout,
     QWidget,
 )
@@ -97,41 +98,66 @@ class AdFetchWorker(QThread):
 
 
 class CollectionWorker(QThread):
-    """Background worker that runs ad collection for multiple industries sequentially."""
+    """Background worker that runs ad collection for multiple industries sequentially or in parallel."""
     progress = pyqtSignal(int, str, int, int)  # industry_index, industry_name, ads_found, ads_saved
     status_update = pyqtSignal(str)
     collection_finished = pyqtSignal()
     error_occurred = pyqtSignal(str)
     log_message = pyqtSignal(str)
 
-    def __init__(self, industries: List[str]) -> None:
+    def __init__(self, industries: List[str], parallel: bool = True) -> None:
         super().__init__()
         self.industries = industries
+        self.parallel = parallel
         self._is_cancelled = False
 
+    def _collect_one(self, industry: str) -> Tuple[int, int]:
+        """Scrape and save ads for a single industry; returns (ads_found, ads_saved)."""
+        from datetime import datetime
+        from src.core.scraper import scrape_ads_sync
+        from src.db.repository import save_ads
+
+        self.status_update.emit(f"Collecting {industry}...")
+        self.log_message.emit(f"[{datetime.now().strftime('%H:%M:%S')}] {industry.upper()}: Starting collection...")
+        try:
+            ads = scrape_ads_sync(industry, max_ads=50)
+            count = save_ads(ads)
+            self.log_message.emit(f"[{datetime.now().strftime('%H:%M:%S')}] {industry.upper()}: Found {len(ads)} ads, saved {count} new")
+            return len(ads), count
+        except Exception as exc:
+            self.error_occurred.emit(f"{industry}: {exc}")
+            self.log_message.emit(f"[{datetime.now().strftime('%H:%M:%S')}] {industry.upper()}: Error - {exc}")
+            return 0, 0
+
     def run(self) -> None:
-        import time
         from datetime import datetime
         try:
-            from src.core.scraper import scrape_ads_sync
-            from src.db.repository import save_ads
+            industry_to_index = {ind: idx for idx, ind in enumerate(self.industries)}
 
-            for idx, industry in enumerate(self.industries):
-                if self._is_cancelled:
-                    self.log_message.emit(f"[{datetime.now().strftime('%H:%M:%S')}] Collection cancelled by user.")
-                    break
-
-                self.status_update.emit(f"Collecting {industry}...")
-                self.log_message.emit(f"[{datetime.now().strftime('%H:%M:%S')}] {industry.upper()}: Starting collection...")
-                try:
-                    ads = scrape_ads_sync(industry, max_ads=50)
-                    count = save_ads(ads)
-                    self.progress.emit(idx, industry, len(ads), count)
-                    self.log_message.emit(f"[{datetime.now().strftime('%H:%M:%S')}] {industry.upper()}: Found {len(ads)} ads, saved {count} new")
-                except Exception as exc:
-                    self.error_occurred.emit(f"{industry}: {exc}")
-                    self.progress.emit(idx, industry, 0, 0)
-                    self.log_message.emit(f"[{datetime.now().strftime('%H:%M:%S')}] {industry.upper()}: Error - {exc}")
+            if self.parallel:
+                from concurrent.futures import ThreadPoolExecutor, as_completed
+                with ThreadPoolExecutor(max_workers=4) as executor:
+                    futures = {}
+                    for industry in self.industries:
+                        if self._is_cancelled:
+                            break
+                        futures[executor.submit(self._collect_one, industry)] = industry
+                    for future in as_completed(futures):
+                        industry = futures[future]
+                        idx = industry_to_index[industry]
+                        try:
+                            found, saved = future.result()
+                            self.progress.emit(idx, industry, found, saved)
+                        except Exception as exc:
+                            self.error_occurred.emit(f"{industry}: {exc}")
+                            self.progress.emit(idx, industry, 0, 0)
+            else:
+                for idx, industry in enumerate(self.industries):
+                    if self._is_cancelled:
+                        self.log_message.emit(f"[{datetime.now().strftime('%H:%M:%S')}] Collection cancelled by user.")
+                        break
+                    found, saved = self._collect_one(industry)
+                    self.progress.emit(idx, industry, found, saved)
 
             self.status_update.emit("Collection complete")
         except Exception as exc:
@@ -145,6 +171,18 @@ class CollectionWorker(QThread):
 
 
 class AdLensPKWindow(QMainWindow):
+    _KEYWORD_INDUSTRY_MAP = {
+        "Fashion": "fashion",
+        "Electronics": "electronics",
+        "Food & Grocery": "food",
+        "Health & Beauty": "health",
+        "Real Estate": "real_estate",
+        "Education": "education",
+        "Home & Living": "home",
+        "Kids & Baby": "general",
+        "General": "general",
+    }
+
     def __init__(self) -> None:
         super().__init__()
         self.setWindowTitle("AdLens PK — Pakistani Ad Intelligence")
@@ -191,7 +229,7 @@ class AdLensPKWindow(QMainWindow):
 
     def _make_tray_icon(self) -> QIcon:
         pixmap = QPixmap(48, 48)
-        pixmap.fill(QColor("#e63946"))
+        pixmap.fill(QColor("#22c55e"))
         painter = QPainter(pixmap)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         font = QFont("Helvetica", 16, QFont.Weight.Bold)
@@ -219,7 +257,7 @@ class AdLensPKWindow(QMainWindow):
                 border-radius: 4px;
             }
             QMenu::item:selected {
-                background-color: #e63946;
+                background-color: #22c55e;
             }
         """)
 
@@ -277,12 +315,18 @@ class AdLensPKWindow(QMainWindow):
 
         self.timer = QTimer(self)
         self.timer.timeout.connect(self._update_status)
-        self.timer.start(60000)
+        self.timer.start(30000)
         self._update_status()
 
     def _update_status(self) -> None:
         now = QDateTime.currentDateTime().toString("yyyy-MM-dd HH:mm")
         self.status_time.setText(f"Current Time: {now}")
+        try:
+            from src.db.repository import get_all_ads
+            count = len(get_all_ads())
+            self.status_db.setText(f"Total Ads in DB: {count}")
+        except Exception as exc:
+            print(f"Error fetching ad count for status bar: {exc}")
 
     def _apply_dark_theme(self) -> None:
         palette = QPalette()
@@ -293,7 +337,7 @@ class AdLensPKWindow(QMainWindow):
         palette.setColor(QPalette.ColorRole.Text, QColor("#ffffff"))
         palette.setColor(QPalette.ColorRole.Button, QColor("#1e2130"))
         palette.setColor(QPalette.ColorRole.ButtonText, QColor("#ffffff"))
-        palette.setColor(QPalette.ColorRole.Highlight, QColor("#e63946"))
+        palette.setColor(QPalette.ColorRole.Highlight, QColor("#22c55e"))
         palette.setColor(QPalette.ColorRole.HighlightedText, QColor("#ffffff"))
         self.setPalette(palette)
 
@@ -318,7 +362,7 @@ class AdLensPKWindow(QMainWindow):
             QComboBox QAbstractItemView {
                 background-color: #1e2130;
                 color: #ffffff;
-                selection-background-color: #e63946;
+                selection-background-color: #22c55e;
                 border: 1px solid #2d3148;
             }
             QLineEdit {
@@ -330,7 +374,7 @@ class AdLensPKWindow(QMainWindow):
                 font-size: 13px;
             }
             QLineEdit:focus {
-                border: 1px solid #e63946;
+                border: 1px solid #22c55e;
             }
             QCheckBox {
                 color: #9ca3af;
@@ -344,8 +388,8 @@ class AdLensPKWindow(QMainWindow):
                 background-color: #1e2130;
             }
             QCheckBox::indicator:checked {
-                background-color: #e63946;
-                border: 1px solid #e63946;
+                background-color: #22c55e;
+                border: 1px solid #22c55e;
             }
             QPushButton {
                 background-color: #1e2130;
@@ -440,7 +484,7 @@ class AdLensPKWindow(QMainWindow):
 
         divider = QWidget()
         divider.setFixedHeight(1)
-        divider.setStyleSheet("background-color: #e63946;")
+        divider.setStyleSheet("background-color: #22c55e;")
         layout.addWidget(divider)
 
         industry_label = QLabel("Industry / Niche")
@@ -469,7 +513,7 @@ class AdLensPKWindow(QMainWindow):
         self.generate_button = QPushButton("Generate Report")
         self.generate_button.setStyleSheet("""
             QPushButton {
-                background-color: #e63946;
+                background-color: #22c55e;
                 color: #ffffff;
                 border: none;
                 border-radius: 8px;
@@ -477,7 +521,7 @@ class AdLensPKWindow(QMainWindow):
                 font-weight: 600;
             }
             QPushButton:hover {
-                background-color: #f04855;
+                background-color: #4ade80;
             }
             QPushButton:disabled {
                 background-color: #4b5563;
@@ -538,7 +582,7 @@ class AdLensPKWindow(QMainWindow):
                         font-family: Segoe UI;
                     }
                     QPushButton:hover { background-color: #2d3148; color: #ffffff; }
-                    QPushButton:checked { background-color: #1e2130; color: #ffffff; border-left: 3px solid #e63946; }
+                    QPushButton:checked { background-color: #1e2130; color: #ffffff; border-left: 3px solid #22c55e; }
                 """)
                 btn.clicked.connect(lambda checked, i=section_index: self._switch_page(i))
                 self.nav_buttons.append(btn)
@@ -566,7 +610,7 @@ class AdLensPKWindow(QMainWindow):
             QFrame {{
                 background-color: #1e2130;
                 border-radius: 10px;
-                border-left: 3px solid #e63946;
+                border-left: 3px solid #22c55e;
                 border-top: 1px solid #2d3148;
                 border-right: 1px solid #2d3148;
                 border-bottom: 1px solid #2d3148;
@@ -581,6 +625,18 @@ class AdLensPKWindow(QMainWindow):
             "color: #ffffff; font-size: 16px; font-weight: 700; margin-bottom: 12px;"
         )
         return label
+
+    @staticmethod
+    def _make_hover_handler(chart, labels, values, unit=""):
+        def on_mouse_moved(pos):
+            if chart.sceneBoundingRect().contains(pos):
+                mouse_point = chart.getViewBox().mapSceneToView(pos)
+                x_val = mouse_point.y()
+                idx = int(round(x_val))
+                if 0 <= idx < len(labels):
+                    tip = f"{labels[idx]}: {values[idx]}{unit}"
+                    QToolTip.showText(QCursor.pos(), tip)
+        return on_mouse_moved
 
     @staticmethod
     def _style_table(table: QTableWidget) -> None:
@@ -710,7 +766,7 @@ class AdLensPKWindow(QMainWindow):
         insight_layout.setSpacing(6)
 
         insight_title = QLabel("Top Insight")
-        insight_title.setStyleSheet("color: #e63946; font-size: 12px; font-weight: 700; text-transform: uppercase; border: none; background: transparent;")
+        insight_title.setStyleSheet("color: #22c55e; font-size: 12px; font-weight: 700; text-transform: uppercase; border: none; background: transparent;")
         self.home_insight_text = QLabel("Analyzing database...")
         self.home_insight_text.setWordWrap(True)
         self.home_insight_text.setMinimumHeight(60)
@@ -747,6 +803,11 @@ class AdLensPKWindow(QMainWindow):
         self.home_industry_chart.getAxis('bottom').setTextPen('#ffffff')
         self.home_industry_chart.getAxis('left').setTextPen('#ffffff')
         self.home_industry_chart.setFixedHeight(200)
+        self.home_industry_chart.setMouseEnabled(x=False, y=False)
+        self.home_industry_chart.hideButtons()
+        self.home_industry_chart.setMenuEnabled(False)
+        self.home_industry_chart.getViewBox().setMouseMode(pg.ViewBox.RectMode)
+        self.home_industry_chart.getViewBox().wheelEvent = lambda ev: ev.ignore()
         industry_chart_layout.addWidget(self.home_industry_chart)
         charts_layout.addLayout(industry_chart_layout, 1)
 
@@ -760,6 +821,11 @@ class AdLensPKWindow(QMainWindow):
         self.home_cod_chart.getAxis('bottom').setTextPen('#ffffff')
         self.home_cod_chart.getAxis('left').setTextPen('#ffffff')
         self.home_cod_chart.setFixedHeight(200)
+        self.home_cod_chart.setMouseEnabled(x=False, y=False)
+        self.home_cod_chart.hideButtons()
+        self.home_cod_chart.setMenuEnabled(False)
+        self.home_cod_chart.getViewBox().setMouseMode(pg.ViewBox.RectMode)
+        self.home_cod_chart.getViewBox().wheelEvent = lambda ev: ev.ignore()
         cod_chart_layout.addWidget(self.home_cod_chart)
         charts_layout.addLayout(cod_chart_layout, 1)
         layout.addLayout(charts_layout)
@@ -856,14 +922,91 @@ class AdLensPKWindow(QMainWindow):
                 QPushButton:checked {
                     background-color: #3b1418;
                     color: #ffffff;
-                    border: 1px solid #e63946;
-                    box-shadow: 0 0 8px #e63946;
+                    border: 1px solid #22c55e;
+                    box-shadow: 0 0 8px #22c55e;
                 }
             """)
             self.industry_toggles.append(btn)
             grid_layout.addWidget(btn)
 
         layout.addLayout(grid_layout)
+
+        # Parallel mode toggle
+        self.parallel_checkbox = QCheckBox("Parallel Collection (4x faster, uses more CPU)")
+        self.parallel_checkbox.setChecked(True)
+        self.parallel_checkbox.setStyleSheet("color: #9ca3af; font-size: 13px;")
+        layout.addWidget(self.parallel_checkbox)
+
+        # Custom keyword input
+        keyword_section_layout = QVBoxLayout()
+        keyword_section_layout.setSpacing(8)
+
+        keyword_label = QLabel("Add Custom Search Term:")
+        keyword_label.setStyleSheet("color: #ffffff; font-size: 14px; font-weight: 600;")
+        keyword_section_layout.addWidget(keyword_label)
+
+        keyword_row = QHBoxLayout()
+        keyword_row.setSpacing(12)
+
+        self.custom_keyword_input = QLineEdit()
+        self.custom_keyword_input.setPlaceholderText("e.g. Khaadi sale, Daraz pk offer")
+        self.custom_keyword_input.setStyleSheet("""
+            QLineEdit {
+                background-color: #1e2130;
+                color: #ffffff;
+                border: 1px solid #2d3148;
+                border-radius: 8px;
+                padding: 10px 14px;
+                font-size: 13px;
+            }
+            QLineEdit:focus { border: 1px solid #22c55e; }
+        """)
+        keyword_row.addWidget(self.custom_keyword_input, 2)
+
+        self.keyword_industry_combo = QComboBox()
+        self.keyword_industry_combo.addItems(self.industry_options[:8])
+        self.keyword_industry_combo.setStyleSheet("""
+            QComboBox {
+                background-color: #1e2130;
+                color: #ffffff;
+                border: 1px solid #2d3148;
+                border-radius: 8px;
+                padding: 8px 12px;
+                min-height: 20px;
+            }
+            QComboBox::drop-down { border: none; width: 24px; }
+            QComboBox QAbstractItemView {
+                background-color: #1e2130;
+                color: #ffffff;
+                selection-background-color: #22c55e;
+                border: 1px solid #2d3148;
+            }
+        """)
+        keyword_row.addWidget(self.keyword_industry_combo, 1)
+
+        add_term_btn = QPushButton("Add Term")
+        add_term_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #22c55e;
+                color: #ffffff;
+                border: none;
+                border-radius: 8px;
+                padding: 10px 20px;
+                font-weight: 600;
+                font-size: 13px;
+            }
+            QPushButton:hover { background-color: #16a34a; }
+        """)
+        add_term_btn.clicked.connect(self._on_add_keyword_term)
+        keyword_row.addWidget(add_term_btn)
+
+        keyword_section_layout.addLayout(keyword_row)
+
+        self.keyword_confirmation_label = QLabel("")
+        self.keyword_confirmation_label.setStyleSheet("color: #10b981; font-size: 12px;")
+        keyword_section_layout.addWidget(self.keyword_confirmation_label)
+
+        layout.addLayout(keyword_section_layout)
 
         # Run controls row
         controls_layout = QHBoxLayout()
@@ -872,7 +1015,7 @@ class AdLensPKWindow(QMainWindow):
         self.start_coll_btn = QPushButton("Start Collection")
         self.start_coll_btn.setStyleSheet("""
             QPushButton {
-                background-color: #e63946;
+                background-color: #22c55e;
                 color: #ffffff;
                 border: none;
                 border-radius: 8px;
@@ -880,7 +1023,7 @@ class AdLensPKWindow(QMainWindow):
                 font-weight: 700;
                 font-size: 15px;
             }
-            QPushButton:hover { background-color: #f04855; }
+            QPushButton:hover { background-color: #4ade80; }
             QPushButton:disabled { background-color: #4b5563; color: #9ca3af; }
         """)
         self.start_coll_btn.clicked.connect(self._on_start_collection)
@@ -945,7 +1088,7 @@ class AdLensPKWindow(QMainWindow):
                 height: 20px;
             }
             QProgressBar::chunk {
-                background-color: #e63946;
+                background-color: #22c55e;
                 border-radius: 5px;
             }
         """)
@@ -1206,7 +1349,7 @@ class AdLensPKWindow(QMainWindow):
         self.export_pdf_button = QPushButton("Export PDF Report")
         self.export_pdf_button.setStyleSheet("""
             QPushButton {
-                background-color: #e63946;
+                background-color: #22c55e;
                 color: #ffffff;
                 border: none;
                 border-radius: 8px;
@@ -1214,7 +1357,7 @@ class AdLensPKWindow(QMainWindow):
                 font-weight: 600;
             }
             QPushButton:hover {
-                background-color: #d62828;
+                background-color: #16a34a;
             }
             QPushButton:disabled {
                 background-color: #1a1d27;
@@ -1237,8 +1380,8 @@ class AdLensPKWindow(QMainWindow):
                 font-weight: 600;
             }
             QPushButton:hover {
-                background-color: #e63946;
-                border-color: #e63946;
+                background-color: #22c55e;
+                border-color: #22c55e;
             }
             QPushButton:disabled {
                 background-color: #1a1d27;
@@ -1351,7 +1494,7 @@ class AdLensPKWindow(QMainWindow):
         add_btn = QPushButton("Add Page")
         add_btn.setStyleSheet("""
             QPushButton {
-                background-color: #e63946;
+                background-color: #22c55e;
                 color: #ffffff;
                 border: none;
                 border-radius: 8px;
@@ -1359,7 +1502,7 @@ class AdLensPKWindow(QMainWindow):
                 font-weight: 600;
             }
             QPushButton:hover {
-                background-color: #d62828;
+                background-color: #16a34a;
             }
         """)
         add_btn.clicked.connect(self._on_add_to_watchlist)
@@ -1464,7 +1607,7 @@ class AdLensPKWindow(QMainWindow):
         self.track_brand_button = QPushButton("Track This Brand")
         self.track_brand_button.setStyleSheet("""
             QPushButton {
-                background-color: #e63946;
+                background-color: #22c55e;
                 color: #ffffff;
                 border: none;
                 border-radius: 8px;
@@ -1472,7 +1615,7 @@ class AdLensPKWindow(QMainWindow):
                 font-weight: 600;
             }
             QPushButton:hover {
-                background-color: #d62828;
+                background-color: #16a34a;
             }
             QPushButton:disabled {
                 background-color: #4b5563;
@@ -1748,7 +1891,7 @@ class AdLensPKWindow(QMainWindow):
                         else:
                             industry_noncod_days.setdefault(ind, []).append(days_active)
 
-                        if days_active >= 30:
+                        if days_active >= 3:
                             industry_winners.setdefault(ind, []).append(ad)
                     except (ValueError, TypeError):
                         pass
@@ -1805,7 +1948,7 @@ class AdLensPKWindow(QMainWindow):
             counts = [item[1] for item in sorted_inds]
             labels = [item[0] for item in sorted_inds]
 
-            bg_ind = pg.BarGraphItem(x0=0, y=y_pos, width=counts, height=0.6, brush='#e63946')
+            bg_ind = pg.BarGraphItem(x0=0, y=y_pos, width=counts, height=0.6, brush='#22c55e')
             self.home_industry_chart.addItem(bg_ind)
             self.home_industry_chart.getAxis('left').setTicks([list(zip(y_pos, labels))])
 
@@ -1813,6 +1956,16 @@ class AdLensPKWindow(QMainWindow):
                 text = pg.TextItem(f"{x}", color='#ffffff', anchor=(0, 0.5))
                 self.home_industry_chart.addItem(text)
                 text.setPos(x + (max(counts) * 0.02), y)
+
+            new_ind_handler = self._make_hover_handler(self.home_industry_chart, labels, counts)
+            old_ind_handler = getattr(self, '_industry_hover_handler', None)
+            if old_ind_handler:
+                try:
+                    self.home_industry_chart.scene().sigMouseMoved.disconnect(old_ind_handler)
+                except Exception:
+                    pass
+            self._industry_hover_handler = new_ind_handler
+            self.home_industry_chart.scene().sigMouseMoved.connect(self._industry_hover_handler)
 
             self.home_cod_chart.clear()
             cod_rates = []
@@ -1829,7 +1982,7 @@ class AdLensPKWindow(QMainWindow):
             rates = [item[1] for item in cod_rates]
             labels_cod = [item[0] for item in cod_rates]
 
-            bg_cod = pg.BarGraphItem(x0=0, y=y_pos_cod, width=rates, height=0.6, brush='#d62828')
+            bg_cod = pg.BarGraphItem(x0=0, y=y_pos_cod, width=rates, height=0.6, brush='#16a34a')
             self.home_cod_chart.addItem(bg_cod)
             self.home_cod_chart.getAxis('left').setTicks([list(zip(y_pos_cod, labels_cod))])
 
@@ -1837,6 +1990,16 @@ class AdLensPKWindow(QMainWindow):
                 text = pg.TextItem(f"{x:.1f}%", color='#ffffff', anchor=(0, 0.5))
                 self.home_cod_chart.addItem(text)
                 text.setPos(x + 2, y)
+
+            new_cod_handler = self._make_hover_handler(self.home_cod_chart, labels_cod, rates, unit="%")
+            old_cod_handler = getattr(self, '_cod_hover_handler', None)
+            if old_cod_handler:
+                try:
+                    self.home_cod_chart.scene().sigMouseMoved.disconnect(old_cod_handler)
+                except Exception:
+                    pass
+            self._cod_hover_handler = new_cod_handler
+            self.home_cod_chart.scene().sigMouseMoved.connect(self._cod_hover_handler)
 
             sorted_ads = sorted(
                 all_ads,
@@ -1873,7 +2036,7 @@ class AdLensPKWindow(QMainWindow):
                 winners = industry_winners.get(ind, [])
                 if not winners:
                     self._add_home_formula_card(
-                        f"{ind}: No winning ads (30+ days) found yet."
+                        f"{ind}: No winning ads (3+ days) found yet."
                     )
                     continue
 
@@ -1934,7 +2097,8 @@ class AdLensPKWindow(QMainWindow):
             self.coll_status_table.setItem(row, 2, QTableWidgetItem("-"))
             self.coll_status_table.setItem(row, 3, QTableWidgetItem("-"))
 
-        self._collection_worker = CollectionWorker(selected_industries)
+        parallel = self.parallel_checkbox.isChecked()
+        self._collection_worker = CollectionWorker(selected_industries, parallel=parallel)
         self._collection_worker.progress.connect(self._on_collection_progress)
         self._collection_worker.status_update.connect(self._on_collection_status_update)
         self._collection_worker.log_message.connect(self._on_collection_log)
@@ -1946,6 +2110,37 @@ class AdLensPKWindow(QMainWindow):
         if self._collection_worker and self._collection_worker.isRunning():
             self._collection_worker.cancel()
             self.stop_coll_btn.setEnabled(False)
+
+    def _on_add_keyword_term(self) -> None:
+        """Add a custom search term to the selected industry's SEARCH_MAP list."""
+        term = self.custom_keyword_input.text().strip()
+        if not term:
+            self.keyword_confirmation_label.setText("Please enter a search term first.")
+            self.keyword_confirmation_label.setStyleSheet("color: #f59e0b; font-size: 12px;")
+            return
+
+        display_industry = self.keyword_industry_combo.currentText()
+        search_key = self._KEYWORD_INDUSTRY_MAP.get(display_industry)
+        if not search_key:
+            self.keyword_confirmation_label.setText(f"Could not map '{display_industry}' to a search category.")
+            self.keyword_confirmation_label.setStyleSheet("color: #f59e0b; font-size: 12px;")
+            return
+
+        try:
+            from scripts.batch_collect import SEARCH_MAP
+            existing = [t.lower() for t in SEARCH_MAP.get(search_key, [])]
+            if term.lower() in existing:
+                self.keyword_confirmation_label.setText(f"'{term}' is already in the {display_industry} search list.")
+                self.keyword_confirmation_label.setStyleSheet("color: #f59e0b; font-size: 12px;")
+                return
+
+            SEARCH_MAP.setdefault(search_key, []).append(term)
+            self.keyword_confirmation_label.setText(f"Added '{term}' to {display_industry} search list")
+            self.keyword_confirmation_label.setStyleSheet("color: #10b981; font-size: 12px;")
+            self.custom_keyword_input.clear()
+        except Exception as exc:
+            self.keyword_confirmation_label.setText(f"Error adding term: {exc}")
+            self.keyword_confirmation_label.setStyleSheet("color: #22c55e; font-size: 12px;")
 
     def _on_collection_progress(
         self,
@@ -2224,7 +2419,7 @@ class AdLensPKWindow(QMainWindow):
             os.startfile(file_path)
         except Exception as exc:
             self.market_overview_status.setText(f"PDF export failed: {exc}")
-            self.market_overview_status.setStyleSheet("color: #e63946; font-size: 14px;")
+            self.market_overview_status.setStyleSheet("color: #22c55e; font-size: 14px;")
 
     def _on_export_strategy_clicked(self) -> None:
         """Exports the current AI strategy brief to a text file using QFileDialog."""
@@ -2272,7 +2467,7 @@ class AdLensPKWindow(QMainWindow):
                 f.write(content)
         except Exception as exc:
             self.market_overview_status.setText(f"Export failed: {exc}")
-            self.market_overview_status.setStyleSheet("color: #e63946; font-size: 14px;")
+            self.market_overview_status.setStyleSheet("color: #22c55e; font-size: 14px;")
 
     def _on_add_to_watchlist(self) -> None:
         """Handles adding a page to the competitor watchlist."""
@@ -2623,7 +2818,7 @@ class AdLensPKWindow(QMainWindow):
     def _on_report_error(self, error_msg: str) -> None:
         """Handles pipeline worker failure."""
         self.market_overview_status.setText(f"Error generating report: {error_msg}")
-        self.market_overview_status.setStyleSheet("color: #e63946; font-size: 14px;")
+        self.market_overview_status.setStyleSheet("color: #22c55e; font-size: 14px;")
 
     def _on_work_finished(self) -> None:
         """Restores button state once worker finishes."""

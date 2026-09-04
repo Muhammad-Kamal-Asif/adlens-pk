@@ -179,6 +179,10 @@ class AdSurvivalTrainer:
                 "duration_seconds": time.time() - start_time
             }
 
+def run():
+    trainer = AdSurvivalTrainer()
+    return trainer.run()
+
 if __name__ == "__main__":
     trainer = AdSurvivalTrainer()
     result = trainer.run()

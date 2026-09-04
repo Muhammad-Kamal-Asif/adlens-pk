@@ -34,7 +34,7 @@ def _make_card(title: str, default: str, subtitle: str):
         QFrame {
             background-color: #1e2130;
             border-radius: 10px;
-            border-left: 3px solid #e63946;
+            border-left: 3px solid #22c55e;
             border-top: 1px solid #2d3148;
             border-right: 1px solid #2d3148;
             border-bottom: 1px solid #2d3148;
@@ -211,7 +211,7 @@ class PriceIntelligencePage(QWidget):
                 padding: 10px 14px;
                 font-size: 14px;
             }
-            QLineEdit:focus { border: 1px solid #e63946; }
+            QLineEdit:focus { border: 1px solid #22c55e; }
         """)
         self._price_input.returnPressed.connect(self._on_check_clicked)
         input_row.addWidget(self._price_input, 1)
@@ -219,7 +219,7 @@ class PriceIntelligencePage(QWidget):
         self._check_btn = QPushButton("Check Position")
         self._check_btn.setStyleSheet("""
             QPushButton {
-                background-color: #e63946;
+                background-color: #22c55e;
                 color: #ffffff;
                 border: none;
                 border-radius: 8px;
@@ -227,7 +227,7 @@ class PriceIntelligencePage(QWidget):
                 font-weight: 600;
                 font-size: 14px;
             }
-            QPushButton:hover { background-color: #d62828; }
+            QPushButton:hover { background-color: #16a34a; }
             QPushButton:disabled { background-color: #4b5563; color: #9ca3af; }
         """)
         self._check_btn.clicked.connect(self._on_check_clicked)
@@ -240,7 +240,7 @@ class PriceIntelligencePage(QWidget):
             QFrame {
                 background-color: #1e2130;
                 border-radius: 10px;
-                border-left: 3px solid #e63946;
+                border-left: 3px solid #22c55e;
                 border-top: 1px solid #2d3148;
                 border-right: 1px solid #2d3148;
                 border-bottom: 1px solid #2d3148;
@@ -384,7 +384,7 @@ class PriceIntelligencePage(QWidget):
         comp_count = pos["competitive_count"]
 
         label_colours = {
-            "Premium":   "#e63946",
+            "Premium":   "#22c55e",
             "Mid-range": "#f59e0b",
             "Budget":    "#10b981",
         }

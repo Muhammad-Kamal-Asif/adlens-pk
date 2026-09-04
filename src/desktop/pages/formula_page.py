@@ -129,7 +129,7 @@ _COMBO_STYLE = """
     QComboBox QAbstractItemView {
         background-color: #1e2130;
         color: #ffffff;
-        selection-background-color: #e63946;
+        selection-background-color: #22c55e;
         border: 1px solid #2d3148;
     }
 """
@@ -187,7 +187,7 @@ class WinningFormulaPage(QWidget):
         header.setStyleSheet("color: #ffffff;")
         layout.addWidget(header)
 
-        subtitle = QLabel("What Pakistani ads running 30+ days have in common")
+        subtitle = QLabel("What Pakistani ads running 3+ days have in common")
         subtitle.setStyleSheet("color: #9ca3af; font-size: 14px;")
         layout.addWidget(subtitle)
 
@@ -201,7 +201,7 @@ class WinningFormulaPage(QWidget):
             QFrame {
                 background-color: #1e2130;
                 border-radius: 10px;
-                border-left: 3px solid #e63946;
+                border-left: 3px solid #22c55e;
                 border-top: 1px solid #2d3148;
                 border-right: 1px solid #2d3148;
                 border-bottom: 1px solid #2d3148;
@@ -217,7 +217,7 @@ class WinningFormulaPage(QWidget):
         tf.setPointSize(12)
         tf.setBold(True)
         self.formula_title.setFont(tf)
-        self.formula_title.setStyleSheet("color: #e63946; background: transparent; border: none;")
+        self.formula_title.setStyleSheet("color: #22c55e; background: transparent; border: none;")
         cl.addWidget(self.formula_title)
 
         self.formula_text = QLabel("")
@@ -231,6 +231,10 @@ class WinningFormulaPage(QWidget):
         cl.addWidget(self.stats_text)
 
         layout.addWidget(self.formula_card)
+
+        note = QLabel("Winning threshold: ads active 3+ days. Threshold increases automatically as database grows.")
+        note.setStyleSheet("color: #6b7280; font-size: 10px; font-style: italic; background: transparent; border: none;")
+        layout.addWidget(note)
 
         self.table_label = QLabel("Winner Ads")
         self.table_label.setStyleSheet(
@@ -264,7 +268,7 @@ class WinningFormulaPage(QWidget):
                 ad["_days_active"] = _compute_days_active(ad)
                 industry_ads.append(ad)
 
-        winners = [a for a in industry_ads if a["_days_active"] >= 30]
+        winners = [a for a in industry_ads if a["_days_active"] >= 3]
 
         if len(winners) < 3:
             self.formula_title.setText("Insufficient Data")
@@ -272,7 +276,7 @@ class WinningFormulaPage(QWidget):
                 "Not enough data yet -- run collection to build this intelligence"
             )
             self.stats_text.setText(
-                f"Found {len(winners)} ads running 30+ days in {industry}. Need at least 3."
+                f"Found {len(winners)} ads running 3+ days in {industry}. Need at least 3."
             )
             self.table.setRowCount(0)
             self.table_label.setText(f"Winner Ads ({len(winners)} found)")
@@ -301,7 +305,7 @@ class WinningFormulaPage(QWidget):
             f"{cod_label}, {top_cta} CTA, {price_label}, {top_hook} hooks"
         )
         self.stats_text.setText(
-            f"Based on {len(winners)} ads running 30+ days. "
+            f"Based on {len(winners)} ads running 3+ days. "
             f"COD prevalence: {cod_pct:.0f}%. "
             f"Average copy length: {avg_copy:.0f} chars."
         )

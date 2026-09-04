@@ -231,8 +231,8 @@ async def scrape_facebook_ads(industry: str, max_ads: int = 100) -> List[RawAdRe
                     seen_fingerprints.add(fingerprint)
 
                     await page.evaluate("""el => {
-                        el.style.outline = '2px solid #e63946';
-                        el.style.boxShadow = '0 0 16px rgba(230,57,70,0.7)';
+                        el.style.outline = '2px solid #22c55e';
+                        el.style.boxShadow = '0 0 16px rgba(34,197,94,0.7)';
                         el.style.borderRadius = '8px';
                         el.style.transition = 'all 0.3s ease';
                     }""", element)

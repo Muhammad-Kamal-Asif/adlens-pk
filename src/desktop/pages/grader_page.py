@@ -84,7 +84,7 @@ class GraderPage(QWidget):
                 line-height: 1.4;
             }
             QTextEdit:focus {
-                border: 1px solid #e63946;
+                border: 1px solid #22c55e;
             }
         """)
         layout.addWidget(self.copy_input)
@@ -121,7 +121,7 @@ class GraderPage(QWidget):
             QComboBox QAbstractItemView {
                 background-color: #1e2130;
                 color: #ffffff;
-                selection-background-color: #e63946;
+                selection-background-color: #22c55e;
                 border: 1px solid #2d3148;
             }
         """)
@@ -140,7 +140,7 @@ class GraderPage(QWidget):
         self.grade_button = QPushButton("Grade This Ad")
         self.grade_button.setStyleSheet("""
             QPushButton {
-                background-color: #e63946;
+                background-color: #22c55e;
                 color: #ffffff;
                 border: none;
                 border-radius: 8px;
@@ -148,7 +148,7 @@ class GraderPage(QWidget):
                 font-weight: 600;
             }
             QPushButton:hover {
-                background-color: #d62828;
+                background-color: #16a34a;
             }
             QPushButton:disabled {
                 background-color: #4b5563;
@@ -252,7 +252,7 @@ class GraderPage(QWidget):
         elif score > 40:
             color = "#f59e0b"  # amber
         else:
-            color = "#e63946"  # red
+            color = "#22c55e"  # red
 
         self.score_label.setStyleSheet(f"color: {color};")
         self.grade_label.setText(label)

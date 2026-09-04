@@ -82,7 +82,7 @@ class WhatsAppAnalyzerPage(QWidget):
             "Avg Days Active (WhatsApp)", "-", "Longevity of WhatsApp ad creatives", "#10b981"
         )
         card_days_non, self.val_days_non = self._create_metric_card(
-            "Avg Days Active (Non-WA)", "-", "Longevity of traditional web ads", "#e63946"
+            "Avg Days Active (Non-WA)", "-", "Longevity of traditional web ads", "#22c55e"
         )
 
         cards_layout.addWidget(card_adopt)
@@ -97,7 +97,7 @@ class WhatsAppAnalyzerPage(QWidget):
             QFrame {
                 background-color: #1e2130;
                 border-radius: 10px;
-                border-left: 3px solid #e63946;
+                border-left: 3px solid #22c55e;
                 border-top: 1px solid #2d3148;
                 border-right: 1px solid #2d3148;
                 border-bottom: 1px solid #2d3148;
@@ -174,7 +174,7 @@ class WhatsAppAnalyzerPage(QWidget):
             QFrame {
                 background-color: #1e2130;
                 border-radius: 10px;
-                border-left: 3px solid #e63946;
+                border-left: 3px solid #22c55e;
                 border-top: 1px solid #2d3148;
                 border-right: 1px solid #2d3148;
                 border-bottom: 1px solid #2d3148;

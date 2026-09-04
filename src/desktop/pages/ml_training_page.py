@@ -93,7 +93,7 @@ class MLTrainingPage(QWidget):
         self._retrain_btn = QPushButton("Manual Retrain")
         self._retrain_btn.setStyleSheet("""
             QPushButton {
-                background-color: #e63946;
+                background-color: #22c55e;
                 color: #ffffff;
                 border: none;
                 border-radius: 8px;
@@ -101,7 +101,7 @@ class MLTrainingPage(QWidget):
                 font-size: 14px;
                 font-weight: 600;
             }
-            QPushButton:hover { background-color: #d62828; }
+            QPushButton:hover { background-color: #16a34a; }
             QPushButton:disabled { background-color: #4b5563; color: #9ca3af; }
         """)
         self._retrain_btn.clicked.connect(self._on_retrain_clicked)
@@ -119,7 +119,7 @@ class MLTrainingPage(QWidget):
                 color: #ffffff;
                 text-align: center;
             }
-            QProgressBar::chunk { background-color: #e63946; border-radius: 6px; }
+            QProgressBar::chunk { background-color: #22c55e; border-radius: 6px; }
         """)
         retrain_row.addWidget(self._progress, 1)
         layout.addLayout(retrain_row)
@@ -162,7 +162,7 @@ class MLTrainingPage(QWidget):
             QFrame {
                 background-color: #1e2130;
                 border-radius: 10px;
-                border-left: 3px solid #e63946;
+                border-left: 3px solid #22c55e;
                 border-top: 1px solid #2d3148;
                 border-right: 1px solid #2d3148;
                 border-bottom: 1px solid #2d3148;
@@ -215,7 +215,7 @@ class MLTrainingPage(QWidget):
         else:
             self._val_status.setText("Not Trained")
             self._val_status.setStyleSheet(
-                "color: #e63946; border: none; background: transparent;"
+                "color: #22c55e; border: none; background: transparent;"
             )
 
         # Last Trained card

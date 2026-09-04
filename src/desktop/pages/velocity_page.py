@@ -54,7 +54,7 @@ class _CircularProgress(QWidget):
 
         # Progress arc
         if self._value <= 33:
-            color = QColor("#e63946")  # red
+            color = QColor("#22c55e")  # red
         elif self._value <= 66:
             color = QColor("#f59e0b")  # amber
         else:
@@ -135,7 +135,7 @@ class TrendVelocityPage(QWidget):
             QFrame {
                 background-color: #1e2130;
                 border-radius: 10px;
-                border-left: 3px solid #e63946;
+                border-left: 3px solid #22c55e;
                 border-top: 1px solid #2d3148;
                 border-right: 1px solid #2d3148;
                 border-bottom: 1px solid #2d3148;
@@ -174,7 +174,7 @@ class TrendVelocityPage(QWidget):
 
         self._rising_list = self._build_industry_list("Rising Industries", "#10b981")
         self._stable_list = self._build_industry_list("Stable Industries", "#f59e0b")
-        self._declining_list = self._build_industry_list("Declining Industries", "#e63946")
+        self._declining_list = self._build_industry_list("Declining Industries", "#22c55e")
 
         lists_layout.addWidget(self._rising_list["widget"])
         lists_layout.addWidget(self._stable_list["widget"])
@@ -220,7 +220,7 @@ class TrendVelocityPage(QWidget):
         self._refresh_btn = QPushButton("Refresh")
         self._refresh_btn.setStyleSheet("""
             QPushButton {
-                background-color: #e63946;
+                background-color: #22c55e;
                 color: #ffffff;
                 border: none;
                 border-radius: 8px;
@@ -228,7 +228,7 @@ class TrendVelocityPage(QWidget):
                 font-weight: 600;
                 font-size: 14px;
             }
-            QPushButton:hover { background-color: #d62828; }
+            QPushButton:hover { background-color: #16a34a; }
             QPushButton:disabled { background-color: #4b5563; color: #9ca3af; }
         """)
         self._refresh_btn.clicked.connect(self.refresh)
@@ -242,7 +242,7 @@ class TrendVelocityPage(QWidget):
             QFrame {
                 background-color: #1e2130;
                 border-radius: 10px;
-                border-left: 3px solid #e63946;
+                border-left: 3px solid #22c55e;
                 border-top: 1px solid #2d3148;
                 border-right: 1px solid #2d3148;
                 border-bottom: 1px solid #2d3148;
@@ -313,7 +313,7 @@ class TrendVelocityPage(QWidget):
                     if change > 0:
                         item.setForeground(QColor("#10b981"))
                     elif change < 0:
-                        item.setForeground(QColor("#e63946"))
+                        item.setForeground(QColor("#22c55e"))
                 self._hooks_table.setItem(row, col, item)
 
     def refresh(self) -> None:
@@ -342,7 +342,7 @@ class TrendVelocityPage(QWidget):
             self._populate_list(
                 self._declining_list["list"],
                 velocity.get("declining_industries", []),
-                "#e63946",
+                "#22c55e",
             )
             self._populate_hooks_table(pulse.get("emerging_hooks", []))
 
@@ -355,6 +355,6 @@ class TrendVelocityPage(QWidget):
             self._status_label.setStyleSheet("color: #10b981; font-size: 13px;")
         except Exception as exc:
             self._status_label.setText(f"Failed to load market pulse: {exc}")
-            self._status_label.setStyleSheet("color: #e63946; font-size: 13px;")
+            self._status_label.setStyleSheet("color: #22c55e; font-size: 13px;")
         finally:
             self._refresh_btn.setEnabled(True)
