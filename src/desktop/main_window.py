@@ -912,18 +912,22 @@ class AdLensPKWindow(QMainWindow):
             btn.setChecked(True) # Default all selected
             btn.setStyleSheet("""
                 QPushButton {
+                    color: #ffffff;
                     background-color: #1e2130;
-                    color: #9ca3af;
-                    border: 1px solid #2d3148;
-                    border-radius: 6px;
-                    padding: 12px;
+                    border: 2px solid #2d3148;
+                    border-radius: 8px;
+                    padding: 10px 8px;
+                    font-size: 12px;
                     font-weight: 600;
                 }
+                QPushButton:hover {
+                    border-color: #22c55e;
+                    color: #22c55e;
+                }
                 QPushButton:checked {
-                    background-color: #3b1418;
-                    color: #ffffff;
-                    border: 1px solid #22c55e;
-                    box-shadow: 0 0 8px #22c55e;
+                    background-color: #14532d;
+                    border: 2px solid #22c55e;
+                    color: #22c55e;
                 }
             """)
             self.industry_toggles.append(btn)
