@@ -1,6 +1,6 @@
 ﻿# AdLens PK — Technical Architecture & Build Blueprint
 
-> **Status:** Core product complete | Remaining: polish pass + submission  
+> **Status:** Submission Ready — September 2026  
 > **Maintainer:** Muhammad Kamal  
 > **Stack:** Python 3.12, PyQt6, SQLite, Playwright, scikit-learn, Docker Compose, Alibaba Cloud
 
@@ -107,34 +107,33 @@ AdLens PK owns that third point. It is the only system that stores Pakistani ad 
 | CLI interface | src/cli/cli.py | Complete |
 | PDF export | src/core/exporter.py | Complete |
 | System tray + scheduler | src/desktop/main_window.py | Complete |
+| PyQt6 desktop app (16 pages) | src/desktop/main_window.py + pages/ | Complete |
+| Green theme throughout | src/desktop/ + src/core/scraper.py | Complete |
+| Playwright scraper with visual card glow | src/core/scraper.py | Complete |
+| Parallel collection mode | src/desktop/main_window.py, scripts/batch_collect.py | Complete |
+| Dynamic search term generation | scripts/batch_collect.py | Complete |
+| Custom keyword UI | src/desktop/main_window.py | Complete |
+| APScheduler 6-hour automation | src/core/scheduler.py, src/ml/scheduler_hook.py | Complete |
+| CLI with 6 commands | src/cli/cli.py | Complete |
+| ML pipeline (GradientBoosting + relevance classifier) | src/ml/ | Complete |
+| PDF export | src/core/exporter.py | Complete |
+| System tray | src/desktop/main_window.py | Complete |
+| Brand Profile page | src/desktop/main_window.py | Complete |
+| Competitor Watchlist | src/db/watchlist.py | Complete |
+| Report History | src/db/reports.py | Complete |
 | In-app data collection worker | src/desktop/main_window.py | Complete |
 | Batch collection script | scripts/batch_collect.py | Complete |
 | Test suite (23/23 pass) | tests/test_pipeline.py | Complete |
 
 ---
 
-## 4. What Gets Built Next
+## 4. Roadmap (Post-Hackathon)
 
-### Better Data Collection
-- Expand search terms per industry (broader keyword coverage)
-- Authenticated Facebook session support for higher scrape reliability
-- Increase max_ads per industry from 50 to 200+
-- Scheduled background collection via ML scheduler hook
-
-### UI Polish Pass
-- Visual consistency audit across all 15 pages
-- Loading spinners for long operations
-- Empty state illustrations
-- Responsive layout tuning for different screen sizes
-
-### Docker Compose Final Test
-- Validate full stack (app + SQLite) in Docker Compose
-- Verify Playwright browser installs correctly in container
-- End-to-end test: scrape, store, display, export PDF
-
-### Hackathon Submission Video
-- 3-minute walkthrough recording
-- Demo flow: Home dashboard, Winning Formula, Generate Report, Price Intel, ML Training, Batch Collect
+- Authenticated Facebook session for higher ad volume
+- PostgreSQL on Alibaba Cloud for shared longitudinal database
+- User accounts and subscription model
+- Alert notifications when watched brands launch new ads
+- ML model accuracy improvement as database grows beyond 10,000 ads
 
 ---
 

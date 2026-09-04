@@ -1,152 +1,92 @@
-# AdLens PK
+# AdLens PK — Pakistani Ad Intelligence Engine
 
-> Pakistan's First Longitudinal Digital Ad Intelligence and Creative Strategy Engine
+Pakistan's first longitudinal ad intelligence engine. Scrapes real Pakistani Facebook ads, stores them historically, and surfaces competitive intelligence for local marketers and SMEs.
 
-AdLens PK is a specialized ad intelligence, competitor tracking, and creative strategy platform engineered for the Pakistani digital commerce and direct-to-consumer (D2C) advertising ecosystem. It bridges the gap left by international ad intelligence tools by incorporating native Roman-Urdu NLP models, deterministic commercial mechanic extraction (Cash on Delivery, WhatsApp funnels, PKR pricing thresholds), and macroeconomic consumer transaction data.
+## The Problem
 
----
+Pakistani brand owners spend Rs. 50,000+ per month on Facebook ads with zero visibility into what competitors are doing. Global tools like BigSpy and AdSpy cost $150-300/month and have no understanding of Pakistani commercial mechanics — Cash on Delivery, PKR pricing, WhatsApp CTAs, or Roman-Urdu copy.
 
-## Features
+## What AdLens PK Does
 
-- **7-Tab PyQt6 Desktop Application**: Fully native, dark-themed desktop interface built with PyQt6 and PyQtGraph, providing interactive analytical views: Market Overview, Offer Matrix, Hook Psychology, Strategy Playbook, Trend Tracker, Competitor Watchlist, and Report History.
-- **Report History & Historical Audits**: Auto-saves every generated ad audit to the database and provides a dedicated archive to inspect and reload historical benchmarks into the active dashboard.
-- **Playwright Web Scraper with Bot Detection Hardening**: Automated extraction engine using Chromium with anti-fingerprint hardening, random mouse movements, variable scroll cadence, and persistent browser storage states to safely collect active ads from the public Facebook Ad Library for Pakistan.
-- **APScheduler Automated 6-Hour Ingestion**: Background scheduling engine running recurring 6-hour ingestion cycles across all major commercial industries (Fashion, Electronics, Food & Grocery, Health & Beauty, Real Estate, Education, and General Retail).
-- **SQLite Local Database with Longitudinal Storage**: Relational persistence layer managed via SQLAlchemy, storing full ad copy, advertiser identities, historical timestamps, pricing models, CTA configurations, and hook types for long-term trend analysis.
-- **Ad Longevity Intelligence**: Evaluates active campaign lifespans (days active) as an objective proxy for ad profitability and scaling success in the Pakistani media buying landscape.
-- **Competitor Watchlist with Auto-Detection**: Dedicated monitoring view that enables users to track target competitor brand pages, automatically detecting and updating ad counts and activity timestamps whenever new ad records are ingested.
-- **One-Click PDF Report Export**: Generates professional, multi-page tactical strategy summaries and executive intelligence briefs ready for client presentations and agency workflows.
-- **Kaggle Demand Context (521k Real Transactions)**: Integrates Pakistan's Largest Ecommerce Dataset by zusmani to benchmark creative ad frequency against half a million verified consumer transactions across top product categories.
-- **AI-Powered Strategy Brief via Gemini**: Context-aware LLM synthesis synthesizing market whitespaces, recommended psychological angles, offer structures, and high-converting Roman-Urdu copy hooks tailored to the selected niche.
-- **System Tray Background Operation**: Runs persistently in the background with status bar diagnostics, database counter metrics, and scheduled execution indicators without interrupting desktop workflows.
-- **Docker Compose Deployment**: Full containerization configuration supporting reproducible multi-service deployment with PostgreSQL and backend workers.
+- Scrapes Facebook Ad Library in real-time with card-by-card visual extraction
+- Stores Pakistani ad data historically — the database compounds over time
+- Extracts Pakistan-specific signals: COD prevalence, PKR price bands, WhatsApp CTA rates
+- Surfaces competitive intelligence: which hook types win, which brands are most active, what ad patterns survive longest
+- Runs on a 6-hour automated schedule — data grows without manual intervention
 
----
+## Current Database
 
-## Technical Architecture
-
-```
-                                    +-----------------------------------------+
-                                    |         Data Ingestion Layer            |
-                                    |  - Playwright Scraper (Stealth Browser) |
-                                    |  - Meta Ad Library Graph API            |
-                                    |  - APScheduler (6-Hour Ingestion Loop)  |
-                                    +--------------------+--------------------+
-                                                         |
-                                                         v
-                                    +--------------------+--------------------+
-                                    |       Core Intelligence Pipeline        |
-                                    |  - Vernacular Roman-Urdu Classifier     |
-                                    |  - Deterministic Commercial Extractor   |
-                                    |  - Kaggle E-Commerce Demand Enricher    |
-                                    |  - Google Gemini Strategy Engine        |
-                                    +--------------------+--------------------+
-                                                         |
-                                                         v
-                                    +--------------------+--------------------+
-                                    |     Database & Persistence Layer        |
-                                    |  - SQLAlchemy ORM                       |
-                                    |  - SQLite (Local) / PostgreSQL (Prod)   |
-                                    |  - Watchlist & Longitudinal Tracking    |
-                                    +--------------------+--------------------+
-                                                         |
-                                                         v
-                                    +--------------------+--------------------+
-                                    |         PyQt6 Desktop Client            |
-                                    |  - Market Overview & Longevity Stats    |
-                                    |  - Offer Matrix & CTA Analysis          |
-                                    |  - Hook Psychology & Language Breakdown |
-                                    |  - Strategy Playbook & PDF Exporter     |
-                                    |  - Trend Tracker & Competitor Watchlist |
-                                    +-----------------------------------------+
-```
-
----
+- 3,073+ real Pakistani ads tracked
+- 14 industries covered: Fashion, Electronics, Real Estate, Food, Health, Education, Home, General and more
+- Top advertiser: PhoneCase Pakistan
+- Most active industry: Fashion (848 ads)
 
 ## Tech Stack
 
-| Layer | Component | Specification / Purpose |
-| --- | --- | --- |
-| **Runtime** | Python 3.12 | Core backend language and pipeline runtime |
-| **Desktop UI** | PyQt6 & PyQtGraph | Hardware-accelerated desktop UI and real-time visualization |
-| **Scraper** | Playwright (Async Python) | Headless Chromium automation with anti-bot bypass |
-| **Task Scheduler** | APScheduler | Interval-based background job orchestration |
-| **Database** | SQLite / PostgreSQL | Relational storage for ad copies, classifications, and watchlist entries |
-| **ORM Layer** | SQLAlchemy 2.0 | Declarative data modeling, migrations, and transactional queries |
-| **AI Synthesis** | Google Gemini API | Structured creative brief generation and whitespace reasoning |
-| **Market Data** | Pandas | High-speed processing of 521k+ transactions from Kaggle |
-| **Testing** | Pytest | Comprehensive unit and integration test suite |
-| **Containerization** | Docker & Docker Compose | Multi-container reproducible runtime configuration |
-
----
-
-## Project Structure
-
-```
-adlens-pk/
-|-- src/
-|   |-- config/
-|   |   +-- settings.py            # Environment configuration and API keys
-|   |-- core/
-|   |   |-- ai_engine.py           # Gemini-powered creative brief synthesis
-|   |   |-- classifier.py          # Language detection and hook classification
-|   |   |-- extractor.py           # Regex-based commercial and CTA extraction
-|   |   |-- fetcher.py             # Live Meta API and local demo dataset fetcher
-|   |   |-- kaggle_enricher.py     # Kaggle 521k order dataset demand benchmark
-|   |   |-- scheduler.py           # APScheduler 6-hour background ingestion loop
-|   |   |-- schemas.py             # Pydantic data contracts and models
-|   |   +-- scraper.py             # Playwright Facebook Ad Library stealth scraper
-|   |-- db/
-|   |   |-- models.py              # SQLAlchemy AdRecord schema
-|   |   |-- repository.py          # Database operations and trend aggregations
-|   |   +-- watchlist.py           # Competitor Watchlist ORM model and CRUD
-|   |-- desktop/
-|   |   +-- main_window.py         # 6-tab PyQt6 desktop application
-|   +-- data/
-|       |-- mock_ads.json          # Curated seed ad intelligence dataset
-|       +-- kaggle/                # Kaggle e-commerce transaction CSV directory
-|-- tests/
-|   +-- test_pipeline.py           # Unit and integration test suite (37 tests)
-|-- scripts/
-|   |-- test_kaggle_real.py        # Kaggle dataset verification script
-|   |-- test_scraper.py            # Playwright scraper smoke test
-|   +-- test_db.py                 # SQLite database query verification
-|-- docker-compose.yml             # Multi-service container definitions
-|-- Dockerfile                     # Application container build instructions
-|-- requirements.txt               # Python package dependencies
-+-- README.md                      # Project documentation
-```
-
----
+| Layer | Technology |
+|-------|-----------|
+| Desktop UI | PyQt6 |
+| Web Scraping | Playwright (card-by-card visual extraction) |
+| Database | SQLite with SQLAlchemy ORM |
+| ML Pipeline | scikit-learn (GradientBoosting + TF-IDF) |
+| AI Briefs | Google Gemini |
+| Scheduling | APScheduler (6-hour automated pulls) |
+| Market Data | Kaggle Pakistan Ecommerce Dataset (521k transactions) |
+| CLI | Python argparse with colorama |
 
 ## How to Run
 
 ```bash
 git clone https://github.com/Muhammad-Kamal-Asif/adlens-pk.git
 cd adlens-pk
-python -m pip install -r requirements.txt
-python -m playwright install chromium
+pip install -r requirements.txt
+playwright install chromium
 cp .env.example .env
 # Add your GEMINI_API_KEY to .env
 python main.py
 ```
 
-The app opens as a desktop window. On first run click "Live Collection" to start gathering Pakistani ad data.
+The app opens as a desktop window with 3,073 pre-collected Pakistani ads ready to explore.
 
-> **Note:** Docker support is included for future cloud deployment. Local installation is recommended for development.
+## Key Features
 
----
+**Home Dashboard** — Live market view with 3,073 ads, industry distribution charts, COD adoption rates, top performing brands
 
-## Running the Test Suite
+**Live Collection** — Watch the scraper run in real-time. Each Facebook ad card glows green as it is extracted. Supports parallel collection across 4 industries simultaneously.
 
-The test suite validates data schemas, deterministic extractors, language classifiers, Kaggle dataset loading, scheduler workflows, database models, and PyQt6 desktop UI events:
+**Winning Formula** — Per-industry analysis of what makes ads run longer: hook types, CTA patterns, COD usage, price ranges
 
-```bash
-pytest -v
-```
+**Price Intelligence** — PKR price band analysis across industries with your price positioning checker
 
----
+**WhatsApp Intel** — Tracks WhatsApp CTA adoption by industry — critical for Pakistani D2C brands
 
-## Author
+**Ad Copy Grader** — Score your own ad copy against market patterns
 
-Developed by **Muhammad Kamal**
+**Competitor Watchlist** — Track specific brands and get alerted when they launch new ads
+
+**ML Training Center** — Local model trains on your data and improves as the database grows
+
+**CLI Mode** — Full command-line interface: fetch, analyze, grade, train, status commands
+
+## Intelligence Pages
+
+1. Home — Live market dashboard
+2. Live Collection — Real-time scraper with visual card glow
+3. Winning Formula — What makes ads survive
+4. Market Overview — Campaign metrics after generating a report
+5. Offer Matrix — COD, pricing, CTA analysis
+6. Hook Psychology — Psychological angle breakdown
+7. Strategy Playbook — AI-generated creative brief
+8. Price Intelligence — PKR price band analysis
+9. WhatsApp Intel — WhatsApp CTA adoption
+10. Trend Tracker — Longitudinal trend analysis
+11. Trend Velocity — Market momentum indicators
+12. Ad Grader — Score your own copy
+13. Brand Profile — Deep dive into any brand
+14. ML Training — Local model management
+15. Watchlist — Competitor monitoring
+16. Report History — Browse past reports
+
+## Built by
+
+Muhammad Kamal — BBA Student, University of Sargodha

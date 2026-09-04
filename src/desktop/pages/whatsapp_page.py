@@ -131,6 +131,11 @@ class WhatsAppAnalyzerPage(QWidget):
         self.industry_chart.getAxis("left").setPen(pg.mkPen(color="#9ca3af"))
         self.industry_chart.getAxis("bottom").setPen(pg.mkPen(color="#9ca3af"))
         self.industry_chart.setFixedHeight(200)
+        self.industry_chart.setMouseEnabled(x=False, y=False)
+        self.industry_chart.hideButtons()
+        self.industry_chart.setMenuEnabled(False)
+        self.industry_chart.getViewBox().setMouseMode(pg.ViewBox.RectMode)
+        self.industry_chart.getViewBox().wheelEvent = lambda ev: ev.ignore()
         layout.addWidget(self.industry_chart)
 
         # 4. Table: Sample WhatsApp Ads

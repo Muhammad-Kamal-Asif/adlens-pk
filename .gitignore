@@ -12,11 +12,11 @@ venv/
 .venv/
 env/
 
-# Databases
+# Databases (keep adlens_local.db tracked as seed data)
 *.db
+!adlens_local.db
 *.sqlite
 *.sqlite3
-adlens_local.db
 adlens.db
 
 # Test & coverage caches
@@ -29,3 +29,17 @@ src/data/kaggle/*.csv
 
 # Browser session state (cookies, auth tokens)
 src/data/browser_state.json
+
+# Images / screenshots
+*.png
+*.jpg
+baseline*.png
+brand_profile_test.png
+trend_tracker_test.png
+
+# Debug / capture scripts
+capture_*.py
+take_screenshot.py
+
+# Qoder test databases
+.qoder_test*.db
